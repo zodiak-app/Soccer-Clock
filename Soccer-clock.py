@@ -44,6 +44,7 @@ class ScoreboardDisplay:
 
         # Variablen für die Anzeige
         self.time_str = tk.StringVar(value="00:00")
+        self.half_str = tk.StringVar(value="SPIEL BEREIT")
         self.home_score_str = tk.StringVar(value="0")
         self.away_score_str = tk.StringVar(value="0")
 
@@ -71,6 +72,9 @@ class ScoreboardDisplay:
         self.lbl_title = tk.Label(self.title_frame, textvariable=self.board_title, font=("Helvetica", 28, "bold"), bg=self.bg_color, fg=self.text_color)
         self.lbl_title.pack()
 
+        self.half_label = tk.Label(self.title_frame, textvariable=self.half_str, font=("Arial", 14, "bold"), bg=self.bg_color, fg=self.text_color)
+        self.half_label.pack(pady=(2, 0))
+
         # --- SPIELSTAND - HOME (Spielplan Links) ---
         self.home_frame = tk.Frame(self.main_frame, bg=self.bg_color)
         self.home_frame.grid(row=1, column=0, sticky="nsew")
@@ -94,12 +98,15 @@ class ScoreboardDisplay:
         # --- SPIELZEIT (GANZ UNTEN) ---
         self.time_frame = tk.Frame(self.main_frame, bg=self.bg_color)
         self.time_frame.grid(row=2, column=0, columnspan=3, pady=(10, 0), sticky="s")
+        self.lbl_time_title = tk.Label(self.time_frame, text="SPIELZEIT", font=("Arial", 14, "bold"), bg=self.bg_color, fg=self.text_color)
+        self.lbl_time_title.pack()
         self.lbl_time = tk.Label(self.time_frame, textvariable=self.time_str, font=("Impact", 70), bg=self.bg_color, fg=self.text_color)
         self.lbl_time.pack()
 
     def update(self, time_str, half_text, home_score, away_score, time_color):
         """Aktualisiert alle Anzeigewerte."""
         self.time_str.set(time_str)
+        self.half_str.set(half_text)
         self.home_score_str.set(str(home_score))
         self.away_score_str.set(str(away_score))
         
@@ -138,6 +145,8 @@ class ScoreboardDisplay:
         self.lbl_score_home.configure(bg=self.bg_color, fg=self.text_color)
         self.lbl_score_away.configure(bg=self.bg_color, fg=self.text_color)
         self.lbl_time.configure(bg=self.bg_color, fg=self.text_color)
+        self.lbl_time_title.configure(bg=self.bg_color, fg=self.text_color)
+        self.half_label.configure(bg=self.bg_color, fg=self.text_color)
         self.lbl_divider.configure(bg=self.bg_color)
 
     def set_team_names(self, home, away):
@@ -160,7 +169,8 @@ class ScoreboardDisplay:
 class FussballTimer:
     def __init__(self, root):
         self.root = root
-        self.root.title("FC RSK Freyburg Halle - Steuerpult")
+        self.controller_title = tk.StringVar(value="FC RSK FREYBURG HALLE")
+        self.root.title(f"{self.controller_title.get()} - Steuerpult")
         self.controller_width = tk.IntVar(value=400)
         self.controller_height = tk.IntVar(value=800)
         self.root.geometry(f"{self.controller_width.get()}x{self.controller_height.get()}")
@@ -251,7 +261,7 @@ class FussballTimer:
         self.header_frame.pack(fill="x")
         self.header_label = tk.Label(
             self.header_frame,
-            text="FC RSK FREYBURG HALLE",
+            textvariable=self.controller_title,
             font=("Helvetica", 16, "bold"),
             bg=self.controller_header_color,
             fg=self.scoreboard_text_color
@@ -299,15 +309,17 @@ class FussballTimer:
         self.settings_window = tk.Toplevel(self.root)
         self.settings_window.title("Einstellungen")
         self.settings_window.configure(bg=self.controller_bg_color)
-        self.settings_window.geometry("460x520")
+        self.settings_window.geometry("560x660")
 
         self.home_name_var = tk.StringVar(value=self.team_home_name)
         self.away_name_var = tk.StringVar(value=self.team_away_name)
+        self.controller_title_var = tk.StringVar(value=self.controller_title.get())
         self.controller_width_var = tk.IntVar(value=self.controller_width.get())
         self.controller_height_var = tk.IntVar(value=self.controller_height.get())
         self.scoreboard_width_var = tk.IntVar(value=self.scoreboard_width.get())
         self.scoreboard_height_var = tk.IntVar(value=self.scoreboard_height.get())
         self.scoreboard_title_var = tk.StringVar(value=self.scoreboard_title)
+        self.match_duration_var = tk.IntVar(value=self.match_duration_minutes.get())
 
         self.controller_bg_color_var = tk.StringVar(value=self.controller_bg_color)
         self.controller_header_color_var = tk.StringVar(value=self.controller_header_color)
@@ -317,46 +329,57 @@ class FussballTimer:
 
         def color_row(parent, label_text, var):
             row = tk.Frame(parent, bg=self.controller_bg_color)
-            row.pack(fill="x", pady=5)
+            row.pack(fill="x", pady=3)
             tk.Label(row, text=label_text, bg=self.controller_bg_color, fg=self.controller_text_color, font=("Arial", 10, "bold"))\
                 .pack(side="left")
-            tk.Entry(row, textvariable=var, width=15).pack(side="left", padx=5)
+            tk.Entry(row, textvariable=var, width=10).pack(side="left", padx=5)
 
             def pick_color():
                 color = colorchooser.askcolor(color=var.get())[1]
                 if color:
                     var.set(color)
 
-            tk.Button(row, text="Wählen", command=pick_color, bg=RSK_WHITE, relief="groove").pack(side="left")
+            tk.Button(row, text="🎨", command=pick_color, bg=RSK_WHITE, relief="groove", width=3).pack(side="left")
 
-        section_names = tk.LabelFrame(self.settings_window, text="Vereinsnamen", bg=self.controller_bg_color, fg=self.controller_text_color)
-        section_names.pack(fill="x", padx=10, pady=10)
-        tk.Label(section_names, text="Heim (links)", bg=self.controller_bg_color, fg=self.controller_text_color).pack(anchor="w", padx=5, pady=2)
-        tk.Entry(section_names, textvariable=self.home_name_var).pack(fill="x", padx=5)
-        tk.Label(section_names, text="Gast (rechts)", bg=self.controller_bg_color, fg=self.controller_text_color).pack(anchor="w", padx=5, pady=2)
-        tk.Entry(section_names, textvariable=self.away_name_var).pack(fill="x", padx=5, pady=(0, 5))
-        tk.Label(section_names, text="Anzeigetafel Titel", bg=self.controller_bg_color, fg=self.controller_text_color).pack(anchor="w", padx=5, pady=2)
-        tk.Entry(section_names, textvariable=self.scoreboard_title_var).pack(fill="x", padx=5)
+        content = tk.Frame(self.settings_window, bg=self.controller_bg_color)
+        content.pack(fill="both", expand=True, padx=10, pady=10)
 
-        section_res = tk.LabelFrame(self.settings_window, text="Auflösung", bg=self.controller_bg_color, fg=self.controller_text_color)
-        section_res.pack(fill="x", padx=10, pady=10)
+        controller_section = tk.LabelFrame(content, text="Steuerpult", bg=self.controller_bg_color, fg=self.controller_text_color)
+        controller_section.pack(fill="x", pady=5)
 
-        ctrl_res_row = tk.Frame(section_res, bg=self.controller_bg_color)
+        tk.Label(controller_section, text="Titel", bg=self.controller_bg_color, fg=self.controller_text_color).pack(anchor="w", padx=5, pady=(5, 2))
+        tk.Entry(controller_section, textvariable=self.controller_title_var).pack(fill="x", padx=5)
+
+        ctrl_res_row = tk.Frame(controller_section, bg=self.controller_bg_color)
         ctrl_res_row.pack(fill="x", pady=5)
-        tk.Label(ctrl_res_row, text="Steuerpult (BxH)", bg=self.controller_bg_color, fg=self.controller_text_color).pack(side="left", padx=5)
+        tk.Label(ctrl_res_row, text="Auflösung (BxH)", bg=self.controller_bg_color, fg=self.controller_text_color).pack(side="left", padx=5)
         tk.Entry(ctrl_res_row, width=6, textvariable=self.controller_width_var).pack(side="left")
         tk.Label(ctrl_res_row, text="x", bg=self.controller_bg_color, fg=self.controller_text_color).pack(side="left", padx=3)
         tk.Entry(ctrl_res_row, width=6, textvariable=self.controller_height_var).pack(side="left")
 
-        board_res_row = tk.Frame(section_res, bg=self.controller_bg_color)
+        duration_row = tk.Frame(controller_section, bg=self.controller_bg_color)
+        duration_row.pack(fill="x", pady=5)
+        tk.Label(duration_row, text="Spielzeit (Minuten)", bg=self.controller_bg_color, fg=self.controller_text_color).pack(side="left", padx=5)
+        tk.Entry(duration_row, width=6, textvariable=self.match_duration_var).pack(side="left")
+
+        scoreboard_section = tk.LabelFrame(content, text="Anzeigetafel", bg=self.controller_bg_color, fg=self.controller_text_color)
+        scoreboard_section.pack(fill="x", pady=5)
+        tk.Label(scoreboard_section, text="Titel", bg=self.controller_bg_color, fg=self.controller_text_color).pack(anchor="w", padx=5, pady=(5, 2))
+        tk.Entry(scoreboard_section, textvariable=self.scoreboard_title_var).pack(fill="x", padx=5)
+        tk.Label(scoreboard_section, text="Heim (links)", bg=self.controller_bg_color, fg=self.controller_text_color).pack(anchor="w", padx=5, pady=2)
+        tk.Entry(scoreboard_section, textvariable=self.home_name_var).pack(fill="x", padx=5)
+        tk.Label(scoreboard_section, text="Gast (rechts)", bg=self.controller_bg_color, fg=self.controller_text_color).pack(anchor="w", padx=5, pady=2)
+        tk.Entry(scoreboard_section, textvariable=self.away_name_var).pack(fill="x", padx=5, pady=(0, 5))
+
+        board_res_row = tk.Frame(scoreboard_section, bg=self.controller_bg_color)
         board_res_row.pack(fill="x", pady=5)
-        tk.Label(board_res_row, text="Anzeigetafel (BxH)", bg=self.controller_bg_color, fg=self.controller_text_color).pack(side="left", padx=5)
+        tk.Label(board_res_row, text="Auflösung (BxH)", bg=self.controller_bg_color, fg=self.controller_text_color).pack(side="left", padx=5)
         tk.Entry(board_res_row, width=6, textvariable=self.scoreboard_width_var).pack(side="left")
         tk.Label(board_res_row, text="x", bg=self.controller_bg_color, fg=self.controller_text_color).pack(side="left", padx=3)
         tk.Entry(board_res_row, width=6, textvariable=self.scoreboard_height_var).pack(side="left")
 
-        section_colors = tk.LabelFrame(self.settings_window, text="Farben", bg=self.controller_bg_color, fg=self.controller_text_color)
-        section_colors.pack(fill="both", padx=10, pady=10)
+        section_colors = tk.LabelFrame(content, text="Farben (kompakt)", bg=self.controller_bg_color, fg=self.controller_text_color)
+        section_colors.pack(fill="x", pady=5)
 
         color_row(section_colors, "Steuerpult Hintergrund", self.controller_bg_color_var)
         color_row(section_colors, "Steuerpult Kopfzeile", self.controller_header_color_var)
@@ -364,7 +387,7 @@ class FussballTimer:
         color_row(section_colors, "Anzeigetafel Hintergrund", self.scoreboard_bg_color_var)
         color_row(section_colors, "Anzeigetafel Text", self.scoreboard_text_color_var)
 
-        btn_row = tk.Frame(self.settings_window, bg=self.controller_bg_color)
+        btn_row = tk.Frame(content, bg=self.controller_bg_color)
         btn_row.pack(fill="x", pady=10)
         tk.Button(btn_row, text="Speichern", command=self._apply_settings, bg=ACCENT_GREEN, fg=RSK_WHITE).pack(side="right", padx=5)
         tk.Button(btn_row, text="Schließen", command=self.settings_window.destroy, bg=ACCENT_RED, fg=RSK_WHITE).pack(side="right", padx=5)
@@ -433,6 +456,18 @@ class FussballTimer:
         self._set_team_names(self.home_name_var.get().strip(), self.away_name_var.get().strip())
         self.scoreboard_title = self.scoreboard_title_var.get().strip() or self.scoreboard_title
         self.scoreboard.set_board_title(self.scoreboard_title)
+
+        new_controller_title = self.controller_title_var.get().strip() or self.controller_title.get()
+        self.controller_title.set(new_controller_title)
+        self.root.title(f"{new_controller_title} - Steuerpult")
+
+        try:
+            desired_minutes = max(1, int(self.match_duration_var.get()))
+        except Exception:
+            desired_minutes = self.match_duration_minutes.get()
+        self.match_duration_minutes.set(desired_minutes)
+        if not self.running:
+            self.current_match_duration_seconds = desired_minutes * 60
 
         try:
             cw = max(300, int(self.controller_width_var.get()))
@@ -612,7 +647,7 @@ class FussballTimer:
             self._update_scoreboard_display(self.timer_label['fg'], "SPIEL PAUSE")
         
         if not self.scoreboard_enabled.get() and self.seconds < self.current_match_duration_seconds:
-             self.scoreboard.hide()
+            self.scoreboard.hide()
 
 
     def reset_timer(self):
@@ -668,18 +703,17 @@ class FussballTimer:
             self._after_id = self.root.after(1000, self._tick)
 
     def _update_scoreboard_display(self, time_color, half_text):
-         if self.scoreboard_enabled.get() or "BEREIT" in half_text or "ENDE" in half_text: 
-            minutes = self.seconds // 60
-            seconds_part = self.seconds % 60
-            time_str = f"{minutes:02}:{seconds_part:02}" 
+        minutes = self.seconds // 60
+        seconds_part = self.seconds % 60
+        time_str = f"{minutes:02}:{seconds_part:02}"
 
-            self.scoreboard.update(
-                time_str,
-                half_text,
-                self.scores[self.team_home_name],
-                self.scores[self.team_away_name],
-                time_color
-            )
+        self.scoreboard.update(
+            time_str,
+            half_text,
+            self.scores[self.team_home_name],
+            self.scores[self.team_away_name],
+            time_color
+        )
 
 
     def update_score(self, team_key, val):
