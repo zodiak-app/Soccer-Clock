@@ -551,8 +551,13 @@ class FussballTimer:
         style = ttk.Style()
         style.theme_use('default')
         style.configure("RSK.Horizontal.TProgressbar", thickness=5, background=RSK_BLUE, troughcolor="#E0E0E0", borderwidth=0)
-        self.progress = ttk.Progressbar(vis_frame, orient="horizontal", mode="determinate", style="RSK.Horizontal.TProgressbar")
-        self.progress.pack(fill="x", pady=(5,0))
+        self.progress = ttk.Progressbar(
+            self.audio_vis_frame,
+            orient="horizontal",
+            mode="determinate",
+            style="RSK.Horizontal.TProgressbar"
+        )
+        self.progress.pack(fill="x", pady=(5, 0))
 
 
     def _get_desired_match_seconds(self):
