@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox, ttk, colorchooser
 import pygame
 import os
 import time
@@ -22,62 +22,70 @@ ACCENT_RED = "#dc3545"
 
 class ScoreboardDisplay:
     """Repräsentiert das separate Anzeigetafel-Fenster mit blau-weißem Schema."""
-    def __init__(self, master):
-        self.window = tk.Toplevel(master) 
+
+    def __init__(self, master, bg_color=RSK_BLUE, text_color=RSK_WHITE, home_name="Spielplan Links", away_name="Spielplan Rechts"):
+        self.window = tk.Toplevel(master)
         self.window.title("Anzeigetafel - FC RSK Freyburg")
-        self.window.geometry("1024x576") 
-        self.window.configure(bg=RSK_BLUE) 
-        self.window.protocol("WM_DELETE_WINDOW", self.hide) 
+        self.window.geometry("1024x576")
+        self.window.configure(bg=bg_color)
+        self.window.protocol("WM_DELETE_WINDOW", self.hide)
+
+        self.bg_color = bg_color
+        self.text_color = text_color
 
         # Variablen für die Anzeige
         self.time_str = tk.StringVar(value="00:00")
         self.home_score_str = tk.StringVar(value="0")
         self.away_score_str = tk.StringVar(value="0")
-        
+
         # NEU: Teamnamen aktualisiert
-        self.team_home_name = "Spielplan Links"
-        self.team_away_name = "Spielplan Rechts"
-        
+        self.team_home_name = tk.StringVar(value=home_name)
+        self.team_away_name = tk.StringVar(value=away_name)
+
         self.create_widgets()
-        self.window.withdraw() 
+        self.window.withdraw()
 
     def create_widgets(self):
-        main_frame = tk.Frame(self.window, bg=RSK_BLUE, padx=20, pady=20)
-        main_frame.pack(fill="both", expand=True)
-        
-        main_frame.grid_columnconfigure(0, weight=1)
-        main_frame.grid_columnconfigure(1, weight=0) 
-        main_frame.grid_columnconfigure(2, weight=1)
-        main_frame.grid_rowconfigure(0, weight=1) 
-        main_frame.grid_rowconfigure(1, weight=3) 
-        main_frame.grid_rowconfigure(2, weight=1) 
+        self.main_frame = tk.Frame(self.window, bg=self.bg_color, padx=20, pady=20)
+        self.main_frame.pack(fill="both", expand=True)
+
+        self.main_frame.grid_columnconfigure(0, weight=1)
+        self.main_frame.grid_columnconfigure(1, weight=0)
+        self.main_frame.grid_columnconfigure(2, weight=1)
+        self.main_frame.grid_rowconfigure(0, weight=1)
+        self.main_frame.grid_rowconfigure(1, weight=3)
+        self.main_frame.grid_rowconfigure(2, weight=1)
 
         # --- TITEL (GANZ OBEN) ---
-        title_frame = tk.Frame(main_frame, bg=RSK_BLUE)
-        title_frame.grid(row=0, column=0, columnspan=3, pady=(0, 5), sticky="n")
-        tk.Label(title_frame, text="FC RSK FREYBURG", font=("Helvetica", 28, "bold"), bg=RSK_BLUE, fg=RSK_WHITE).pack() 
-        
+        self.title_frame = tk.Frame(self.main_frame, bg=self.bg_color)
+        self.title_frame.grid(row=0, column=0, columnspan=3, pady=(0, 5), sticky="n")
+        self.lbl_title = tk.Label(self.title_frame, text="FC RSK FREYBURG", font=("Helvetica", 28, "bold"), bg=self.bg_color, fg=self.text_color)
+        self.lbl_title.pack()
+
         # --- SPIELSTAND - HOME (Spielplan Links) ---
-        home_frame = tk.Frame(main_frame, bg=RSK_BLUE)
-        home_frame.grid(row=1, column=0, sticky="nsew")
-        tk.Label(home_frame, text=self.team_home_name, font=("Arial", 22, "bold"), bg=RSK_BLUE, fg=RSK_WHITE).pack(pady=5)
-        self.lbl_score_home = tk.Label(home_frame, textvariable=self.home_score_str, font=("Impact", 200), bg=RSK_BLUE, fg=RSK_WHITE)
+        self.home_frame = tk.Frame(self.main_frame, bg=self.bg_color)
+        self.home_frame.grid(row=1, column=0, sticky="nsew")
+        self.lbl_home_team = tk.Label(self.home_frame, textvariable=self.team_home_name, font=("Arial", 22, "bold"), bg=self.bg_color, fg=self.text_color)
+        self.lbl_home_team.pack(pady=5)
+        self.lbl_score_home = tk.Label(self.home_frame, textvariable=self.home_score_str, font=("Impact", 200), bg=self.bg_color, fg=self.text_color)
         self.lbl_score_home.pack(fill="both", expand=True)
 
         # --- TRENNER (DOPPELPUNKT) ---
-        tk.Label(main_frame, text=":", font=("Impact", 200), bg=RSK_BLUE, fg="#4477BB").grid(row=1, column=1, sticky="nsew", padx=10) 
-        
+        self.lbl_divider = tk.Label(self.main_frame, text=":", font=("Impact", 200), bg=self.bg_color, fg="#4477BB")
+        self.lbl_divider.grid(row=1, column=1, sticky="nsew", padx=10)
+
         # --- SPIELSTAND - AWAY (Spielplan Rechts) ---
-        away_frame = tk.Frame(main_frame, bg=RSK_BLUE)
-        away_frame.grid(row=1, column=2, sticky="nsew")
-        tk.Label(away_frame, text=self.team_away_name, font=("Arial", 22, "bold"), bg=RSK_BLUE, fg="#D0D0D0").pack(pady=5) 
-        self.lbl_score_away = tk.Label(away_frame, textvariable=self.away_score_str, font=("Impact", 200), bg=RSK_BLUE, fg=RSK_WHITE)
+        self.away_frame = tk.Frame(self.main_frame, bg=self.bg_color)
+        self.away_frame.grid(row=1, column=2, sticky="nsew")
+        self.lbl_away_team = tk.Label(self.away_frame, textvariable=self.team_away_name, font=("Arial", 22, "bold"), bg=self.bg_color, fg="#D0D0D0")
+        self.lbl_away_team.pack(pady=5)
+        self.lbl_score_away = tk.Label(self.away_frame, textvariable=self.away_score_str, font=("Impact", 200), bg=self.bg_color, fg=self.text_color)
         self.lbl_score_away.pack(fill="both", expand=True)
 
         # --- SPIELZEIT (GANZ UNTEN) ---
-        time_frame = tk.Frame(main_frame, bg=RSK_BLUE)
-        time_frame.grid(row=2, column=0, columnspan=3, pady=(10, 0), sticky="s")
-        self.lbl_time = tk.Label(time_frame, textvariable=self.time_str, font=("Impact", 70), bg=RSK_BLUE, fg=RSK_WHITE) 
+        self.time_frame = tk.Frame(self.main_frame, bg=self.bg_color)
+        self.time_frame.grid(row=2, column=0, columnspan=3, pady=(10, 0), sticky="s")
+        self.lbl_time = tk.Label(self.time_frame, textvariable=self.time_str, font=("Impact", 70), bg=self.bg_color, fg=self.text_color)
         self.lbl_time.pack()
 
     def update(self, time_str, half_text, home_score, away_score, time_color):
@@ -86,29 +94,49 @@ class ScoreboardDisplay:
         self.home_score_str.set(str(home_score))
         self.away_score_str.set(str(away_score))
         
-        if time_color == RSK_BLUE:
-             self.lbl_time.config(fg=RSK_WHITE) 
+        if time_color == self.bg_color:
+            self.lbl_time.config(fg=self.text_color)
         elif time_color == ACCENT_RED:
-             self.lbl_time.config(fg=ACCENT_RED) 
+            self.lbl_time.config(fg=ACCENT_RED)
         else:
-             self.lbl_time.config(fg=time_color)
+            self.lbl_time.config(fg=time_color)
         
         if home_score > away_score:
-            self.lbl_score_home.config(fg=RSK_WHITE) 
-            self.lbl_score_away.config(fg="#88AAFF") 
+            self.lbl_score_home.config(fg=self.text_color)
+            self.lbl_score_away.config(fg="#88AAFF")
         elif away_score > home_score:
             self.lbl_score_home.config(fg="#88AAFF")
-            self.lbl_score_away.config(fg=RSK_WHITE)
+            self.lbl_score_away.config(fg=self.text_color)
         else:
-            self.lbl_score_home.config(fg=RSK_WHITE)
-            self.lbl_score_away.config(fg=RSK_WHITE)
+            self.lbl_score_home.config(fg=self.text_color)
+            self.lbl_score_away.config(fg=self.text_color)
 
     def show(self):
-        self.window.deiconify() 
+        self.window.deiconify()
         self.window.lift()
 
     def hide(self):
-        self.window.withdraw() 
+        self.window.withdraw()
+
+    def set_colors(self, bg_color, text_color):
+        self.bg_color = bg_color
+        self.text_color = text_color
+        for widget in [self.window, self.main_frame, self.title_frame, self.home_frame, self.away_frame, self.time_frame]:
+            widget.configure(bg=self.bg_color)
+        self.lbl_title.configure(bg=self.bg_color, fg=self.text_color)
+        self.lbl_home_team.configure(bg=self.bg_color, fg=self.text_color)
+        self.lbl_away_team.configure(bg=self.bg_color)
+        self.lbl_score_home.configure(bg=self.bg_color, fg=self.text_color)
+        self.lbl_score_away.configure(bg=self.bg_color, fg=self.text_color)
+        self.lbl_time.configure(bg=self.bg_color, fg=self.text_color)
+        self.lbl_divider.configure(bg=self.bg_color)
+
+    def set_team_names(self, home, away):
+        self.team_home_name.set(home)
+        self.team_away_name.set(away)
+
+    def set_resolution(self, width, height):
+        self.window.geometry(f"{width}x{height}")
 
 
 # ====================================================================
@@ -119,9 +147,17 @@ class FussballTimer:
     def __init__(self, root):
         self.root = root
         self.root.title("FC RSK Freyburg Halle - Steuerpult")
-        self.root.geometry("400x800")
+        self.controller_width = tk.IntVar(value=400)
+        self.controller_height = tk.IntVar(value=800)
+        self.root.geometry(f"{self.controller_width.get()}x{self.controller_height.get()}")
         self.root.minsize(400, 800)
-        self.root.configure(bg=BG_COLOR)
+        self.controller_bg_color = BG_COLOR
+        self.controller_header_color = RSK_BLUE
+        self.controller_card_bg = RSK_WHITE
+        self.controller_text_color = TEXT_COLOR
+        self.scoreboard_bg_color = RSK_BLUE
+        self.scoreboard_text_color = RSK_WHITE
+        self.root.configure(bg=self.controller_bg_color)
 
         # --- Logik-Variablen ---
         self.seconds = 0
@@ -131,7 +167,7 @@ class FussballTimer:
         # NEU: Teamnamen im Controller aktualisiert
         self.team_home_name = "Spielplan Links"
         self.team_away_name = "Spielplan Rechts"
-        
+
         self.scores = {self.team_home_name: 0, self.team_away_name: 0}
         
         self.match_duration_minutes = tk.IntVar(value=45) 
@@ -142,8 +178,16 @@ class FussballTimer:
         self.auto_jingle_enabled = tk.BooleanVar(value=True) 
         
         self.scoreboard_enabled = tk.BooleanVar(value=False)
-        self.scoreboard = ScoreboardDisplay(root) 
-        self.scoreboard_enabled.trace_add("write", self._toggle_scoreboard) 
+        self.scoreboard_width = tk.IntVar(value=1024)
+        self.scoreboard_height = tk.IntVar(value=576)
+        self.scoreboard = ScoreboardDisplay(
+            root,
+            bg_color=self.scoreboard_bg_color,
+            text_color=self.scoreboard_text_color,
+            home_name=self.team_home_name,
+            away_name=self.team_away_name
+        )
+        self.scoreboard_enabled.trace_add("write", self._toggle_scoreboard)
         
         # Audio
         try:
@@ -168,7 +212,7 @@ class FussballTimer:
 
     # --- UI HELPER METHODEN (Unverändert) ---
     def _big_btn(self, parent, text, cmd, color):
-        return tk.Button(parent, text=text, font=("Arial", 12, "bold"), bg=color, fg="white", 
+        return tk.Button(parent, text=text, font=("Arial", 12, "bold"), bg=color, fg="white",
                          command=cmd, relief="flat", padx=15, pady=5, cursor="hand2")
 
     def _text_btn(self, parent, text, cmd):
@@ -187,152 +231,322 @@ class FussballTimer:
 
     def create_widgets(self):
         # --- HEADER ---
-        header_frame = tk.Frame(self.root, bg=RSK_BLUE, height=50)
-        header_frame.pack(fill="x")
-        header_label = tk.Label(header_frame, text="FC RSK FREYBURG HALLE", 
-                                 font=("Helvetica", 16, "bold"), bg=RSK_BLUE, fg=RSK_WHITE)
-        header_label.pack(pady=10)
-        
+        self.header_frame = tk.Frame(self.root, bg=self.controller_header_color, height=50)
+        self.header_frame.pack(fill="x")
+        self.header_label = tk.Label(
+            self.header_frame,
+            text="FC RSK FREYBURG HALLE",
+            font=("Helvetica", 16, "bold"),
+            bg=self.controller_header_color,
+            fg=self.scoreboard_text_color
+        )
+        self.header_label.pack(pady=10, side="left", padx=10)
+
+        self.settings_btn = tk.Button(
+            self.header_frame,
+            text="⚙ Einstellungen",
+            font=("Arial", 10, "bold"),
+            bg=self.controller_header_color,
+            fg=self.scoreboard_text_color,
+            relief="flat",
+            cursor="hand2",
+            command=self._open_settings_menu
+        )
+        self.settings_btn.pack(side="right", padx=10)
+
         # Anzeigetafel-Option GANZ OBEN platziert
         self._create_card_scoreboard_option_top()
 
         # --- HAUPTBEREICH ---
-        main_container = tk.Frame(self.root, bg=BG_COLOR)
-        main_container.pack(fill="both", expand=True, padx=10, pady=10)
+        self.main_container = tk.Frame(self.root, bg=self.controller_bg_color)
+        self.main_container.pack(fill="both", expand=True, padx=10, pady=10)
 
-        self._create_card_timer(main_container)
-        self._create_card_score(main_container)
-        self._create_card_audio(main_container) 
+        self._create_card_timer(self.main_container)
+        self._create_card_score(self.main_container)
+        self._create_card_audio(self.main_container)
+
+    def _recolor_container(self, widget, color):
+        for child in widget.winfo_children():
+            if child.winfo_children():
+                self._recolor_container(child, color)
+            if child.winfo_class() not in ("Button", "TButton"):
+                try:
+                    child.configure(bg=color)
+                except tk.TclError:
+                    pass
+
+    def _open_settings_menu(self):
+        if hasattr(self, "settings_window") and self.settings_window.winfo_exists():
+            self.settings_window.lift()
+            return
+
+        self.settings_window = tk.Toplevel(self.root)
+        self.settings_window.title("Einstellungen")
+        self.settings_window.configure(bg=self.controller_bg_color)
+        self.settings_window.geometry("460x520")
+
+        self.home_name_var = tk.StringVar(value=self.team_home_name)
+        self.away_name_var = tk.StringVar(value=self.team_away_name)
+        self.controller_width_var = tk.IntVar(value=self.controller_width.get())
+        self.controller_height_var = tk.IntVar(value=self.controller_height.get())
+        self.scoreboard_width_var = tk.IntVar(value=self.scoreboard_width.get())
+        self.scoreboard_height_var = tk.IntVar(value=self.scoreboard_height.get())
+
+        self.controller_bg_color_var = tk.StringVar(value=self.controller_bg_color)
+        self.controller_header_color_var = tk.StringVar(value=self.controller_header_color)
+        self.controller_card_color_var = tk.StringVar(value=self.controller_card_bg)
+        self.scoreboard_bg_color_var = tk.StringVar(value=self.scoreboard_bg_color)
+        self.scoreboard_text_color_var = tk.StringVar(value=self.scoreboard_text_color)
+
+        def color_row(parent, label_text, var):
+            row = tk.Frame(parent, bg=self.controller_bg_color)
+            row.pack(fill="x", pady=5)
+            tk.Label(row, text=label_text, bg=self.controller_bg_color, fg=self.controller_text_color, font=("Arial", 10, "bold"))\
+                .pack(side="left")
+            tk.Entry(row, textvariable=var, width=15).pack(side="left", padx=5)
+
+            def pick_color():
+                color = colorchooser.askcolor(color=var.get())[1]
+                if color:
+                    var.set(color)
+
+            tk.Button(row, text="Wählen", command=pick_color, bg=RSK_WHITE, relief="groove").pack(side="left")
+
+        section_names = tk.LabelFrame(self.settings_window, text="Vereinsnamen", bg=self.controller_bg_color, fg=self.controller_text_color)
+        section_names.pack(fill="x", padx=10, pady=10)
+        tk.Label(section_names, text="Heim (links)", bg=self.controller_bg_color, fg=self.controller_text_color).pack(anchor="w", padx=5, pady=2)
+        tk.Entry(section_names, textvariable=self.home_name_var).pack(fill="x", padx=5)
+        tk.Label(section_names, text="Gast (rechts)", bg=self.controller_bg_color, fg=self.controller_text_color).pack(anchor="w", padx=5, pady=2)
+        tk.Entry(section_names, textvariable=self.away_name_var).pack(fill="x", padx=5, pady=(0, 5))
+
+        section_res = tk.LabelFrame(self.settings_window, text="Auflösung", bg=self.controller_bg_color, fg=self.controller_text_color)
+        section_res.pack(fill="x", padx=10, pady=10)
+
+        ctrl_res_row = tk.Frame(section_res, bg=self.controller_bg_color)
+        ctrl_res_row.pack(fill="x", pady=5)
+        tk.Label(ctrl_res_row, text="Steuerpult (BxH)", bg=self.controller_bg_color, fg=self.controller_text_color).pack(side="left", padx=5)
+        tk.Entry(ctrl_res_row, width=6, textvariable=self.controller_width_var).pack(side="left")
+        tk.Label(ctrl_res_row, text="x", bg=self.controller_bg_color, fg=self.controller_text_color).pack(side="left", padx=3)
+        tk.Entry(ctrl_res_row, width=6, textvariable=self.controller_height_var).pack(side="left")
+
+        board_res_row = tk.Frame(section_res, bg=self.controller_bg_color)
+        board_res_row.pack(fill="x", pady=5)
+        tk.Label(board_res_row, text="Anzeigetafel (BxH)", bg=self.controller_bg_color, fg=self.controller_text_color).pack(side="left", padx=5)
+        tk.Entry(board_res_row, width=6, textvariable=self.scoreboard_width_var).pack(side="left")
+        tk.Label(board_res_row, text="x", bg=self.controller_bg_color, fg=self.controller_text_color).pack(side="left", padx=3)
+        tk.Entry(board_res_row, width=6, textvariable=self.scoreboard_height_var).pack(side="left")
+
+        section_colors = tk.LabelFrame(self.settings_window, text="Farben", bg=self.controller_bg_color, fg=self.controller_text_color)
+        section_colors.pack(fill="both", padx=10, pady=10)
+
+        color_row(section_colors, "Steuerpult Hintergrund", self.controller_bg_color_var)
+        color_row(section_colors, "Steuerpult Kopfzeile", self.controller_header_color_var)
+        color_row(section_colors, "Karten Hintergrund", self.controller_card_color_var)
+        color_row(section_colors, "Anzeigetafel Hintergrund", self.scoreboard_bg_color_var)
+        color_row(section_colors, "Anzeigetafel Text", self.scoreboard_text_color_var)
+
+        btn_row = tk.Frame(self.settings_window, bg=self.controller_bg_color)
+        btn_row.pack(fill="x", pady=10)
+        tk.Button(btn_row, text="Speichern", command=self._apply_settings, bg=ACCENT_GREEN, fg=RSK_WHITE).pack(side="right", padx=5)
+        tk.Button(btn_row, text="Schließen", command=self.settings_window.destroy, bg=ACCENT_RED, fg=RSK_WHITE).pack(side="right", padx=5)
         
     def _create_card_scoreboard_option_top(self):
-        card = tk.Frame(self.root, bg=RSK_WHITE, bd=1, relief="flat")
-        card.pack(fill="x", pady=(0, 10), padx=10, ipady=5)
-        
-        tk.Label(card, text="ANZEIGE", font=("Arial", 12, "bold"), bg=RSK_WHITE, fg=RSK_BLUE).pack(anchor="w", padx=10, pady=(5, 0))
-        
-        tk.Checkbutton(
-            card,
+        self.scoreboard_option_card = tk.Frame(self.root, bg=self.controller_card_bg, bd=1, relief="flat")
+        self.scoreboard_option_card.pack(fill="x", pady=(0, 10), padx=10, ipady=5)
+
+        self.scoreboard_option_label = tk.Label(self.scoreboard_option_card, text="ANZEIGE", font=("Arial", 12, "bold"), bg=self.controller_card_bg, fg=RSK_BLUE)
+        self.scoreboard_option_label.pack(anchor="w", padx=10, pady=(5, 0))
+
+        self.scoreboard_toggle = tk.Checkbutton(
+            self.scoreboard_option_card,
             text="Anzeigetafel (Zweites Fenster) anzeigen",
             variable=self.scoreboard_enabled,
-            bg=RSK_WHITE,
+            bg=self.controller_card_bg,
             font=("Arial", 10),
-            fg=TEXT_COLOR,
+            fg=self.controller_text_color,
             relief="flat",
             cursor="hand2"
-        ).pack(anchor="w", padx=10, pady=5)
+        )
+        self.scoreboard_toggle.pack(anchor="w", padx=10, pady=5)
     
     def _toggle_scoreboard(self, *args):
         if self.scoreboard_enabled.get():
             self.scoreboard.show()
-            self._update_scoreboard_display(self.timer_label['fg'], self.half_label['text']) 
+            self._update_scoreboard_display(self.timer_label['fg'], self.half_label['text'])
         else:
             self.scoreboard.hide()
 
+    def _apply_controller_colors(self):
+        self.root.configure(bg=self.controller_bg_color)
+        self.main_container.configure(bg=self.controller_bg_color)
+        self.header_frame.configure(bg=self.controller_header_color)
+        self.header_label.configure(bg=self.controller_header_color, fg=self.scoreboard_text_color)
+        self.settings_btn.configure(bg=self.controller_header_color, fg=self.scoreboard_text_color)
+
+        for widget in [self.scoreboard_option_card, self.timer_card, self.score_card, self.audio_card]:
+            widget.configure(bg=self.controller_card_bg)
+            self._recolor_container(widget, self.controller_card_bg)
+
+    def _set_team_names(self, home, away):
+        old_home = self.home_title_label.cget("text")
+        old_away = self.away_title_label.cget("text")
+        self.team_home_name = home or old_home
+        self.team_away_name = away or old_away
+
+        self.scores = {
+            self.team_home_name: self.scores.get(old_home, 0),
+            self.team_away_name: self.scores.get(old_away, 0)
+        }
+
+        self.home_title_label.config(text=self.team_home_name)
+        self.away_title_label.config(text=self.team_away_name)
+
+        self.scoreboard.set_team_names(self.team_home_name, self.team_away_name)
+        self._update_scoreboard_display(self.timer_label['fg'], self.half_label['text'])
+
+    def _apply_settings(self):
+        self.controller_bg_color = self.controller_bg_color_var.get()
+        self.controller_header_color = self.controller_header_color_var.get()
+        self.controller_card_bg = self.controller_card_color_var.get()
+        self.scoreboard_bg_color = self.scoreboard_bg_color_var.get()
+        self.scoreboard_text_color = self.scoreboard_text_color_var.get()
+
+        self._set_team_names(self.home_name_var.get().strip(), self.away_name_var.get().strip())
+
+        try:
+            cw = max(300, int(self.controller_width_var.get()))
+            ch = max(400, int(self.controller_height_var.get()))
+        except Exception:
+            cw, ch = self.controller_width.get(), self.controller_height.get()
+
+        self.controller_width.set(cw)
+        self.controller_height.set(ch)
+        self.root.geometry(f"{cw}x{ch}")
+
+        try:
+            sw = max(300, int(self.scoreboard_width_var.get()))
+            sh = max(200, int(self.scoreboard_height_var.get()))
+        except Exception:
+            sw, sh = self.scoreboard_width.get(), self.scoreboard_height.get()
+
+        self.scoreboard_width.set(sw)
+        self.scoreboard_height.set(sh)
+        self.scoreboard.set_resolution(sw, sh)
+
+        self._apply_controller_colors()
+        self.scoreboard.set_colors(self.scoreboard_bg_color, self.scoreboard_text_color)
+
+        if hasattr(self, "settings_window") and self.settings_window.winfo_exists():
+            self.settings_window.destroy()
+
 
     def _create_card_timer(self, parent):
-        card = tk.Frame(parent, bg=RSK_WHITE, bd=1, relief="flat")
-        card.pack(fill="x", pady=(0, 10), ipady=5)
+        self.timer_card = tk.Frame(parent, bg=self.controller_card_bg, bd=1, relief="flat")
+        self.timer_card.pack(fill="x", pady=(0, 10), ipady=5)
 
-        self.half_label = tk.Label(card, text="SPIEL BEREIT", font=("Arial", 12, "bold"), bg=RSK_WHITE, fg="#888")
+        self.half_label = tk.Label(self.timer_card, text="SPIEL BEREIT", font=("Arial", 12, "bold"), bg=self.controller_card_bg, fg="#888")
         self.half_label.pack(pady=(10, 0))
 
-        self.timer_label = tk.Label(card, text="0:00", font=("Impact", 75), bg=RSK_WHITE, fg=RSK_BLUE)
+        self.timer_label = tk.Label(self.timer_card, text="0:00", font=("Impact", 75), bg=self.controller_card_bg, fg=RSK_BLUE)
         self.timer_label.pack(pady=0)
 
-        btn_frame = tk.Frame(card, bg=RSK_WHITE)
+        btn_frame = tk.Frame(self.timer_card, bg=self.controller_card_bg)
         btn_frame.pack(pady=10)
         self._big_btn(btn_frame, "START", self.start_timer, ACCENT_GREEN).pack(side="left", padx=5)
         self._big_btn(btn_frame, "STOPP", self.stop_timer, ACCENT_RED).pack(side="left", padx=5)
-        
-        sub_btn_frame = tk.Frame(card, bg=RSK_WHITE)
+
+        sub_btn_frame = tk.Frame(self.timer_card, bg=self.controller_card_bg)
         sub_btn_frame.pack(pady=(0, 10))
 
-        tk.Label(sub_btn_frame, text="Länge:", font=("Arial", 10), bg=RSK_WHITE, fg="#666").pack(side="left", padx=5)
+        tk.Label(sub_btn_frame, text="Länge:", font=("Arial", 10), bg=self.controller_card_bg, fg="#666").pack(side="left", padx=5)
 
         self.duration_input = tk.Spinbox(
-            sub_btn_frame, 
-            from_=1, to=120, 
-            textvariable=self.match_duration_minutes, 
-            width=3, 
+            sub_btn_frame,
+            from_=1, to=120,
+            textvariable=self.match_duration_minutes,
+            width=3,
             font=("Arial", 10),
             relief="flat"
         )
         self.duration_input.pack(side="left")
-        tk.Label(sub_btn_frame, text="Min", font=("Arial", 10), bg=RSK_WHITE, fg="#666").pack(side="left", padx=(0, 10))
+        tk.Label(sub_btn_frame, text="Min", font=("Arial", 10), bg=self.controller_card_bg, fg="#666").pack(side="left", padx=(0, 10))
 
         self._text_btn(sub_btn_frame, "Reset", self.reset_timer).pack(side="left", padx=5)
 
     def _create_card_score(self, parent):
-        card = tk.Frame(parent, bg=RSK_WHITE, bd=1, relief="flat")
-        card.pack(fill="x", pady=(0, 10), ipady=10)
-        score_grid = tk.Frame(card, bg=RSK_WHITE)
-        score_grid.pack()
-        
+        self.score_card = tk.Frame(parent, bg=self.controller_card_bg, bd=1, relief="flat")
+        self.score_card.pack(fill="x", pady=(0, 10), ipady=10)
+        self.score_grid = tk.Frame(self.score_card, bg=self.controller_card_bg)
+        self.score_grid.pack()
+
         # NEU: Text auf Spielplan Links geändert
-        home_frame = tk.Frame(score_grid, bg=RSK_WHITE)
+        home_frame = tk.Frame(self.score_grid, bg=self.controller_card_bg)
         home_frame.grid(row=0, column=0, padx=10)
-        tk.Label(home_frame, text=self.scoreboard.team_home_name, font=("Arial", 14, "bold"), bg=RSK_WHITE, fg=RSK_BLUE).pack() 
-        self.lbl_score_home = tk.Label(home_frame, text="0", font=("Arial", 50, "bold"), bg=RSK_WHITE, fg=TEXT_COLOR)
+        self.home_title_label = tk.Label(home_frame, text=self.scoreboard.team_home_name.get(), font=("Arial", 14, "bold"), bg=self.controller_card_bg, fg=RSK_BLUE)
+        self.home_title_label.pack()
+        self.lbl_score_home = tk.Label(home_frame, text="0", font=("Arial", 50, "bold"), bg=self.controller_card_bg, fg=self.controller_text_color)
         self.lbl_score_home.pack()
-        h_btns = tk.Frame(home_frame, bg=RSK_WHITE)
+        h_btns = tk.Frame(home_frame, bg=self.controller_card_bg)
         h_btns.pack()
         self._circle_btn(h_btns, "+", lambda: self.update_score("Home", 1), RSK_BLUE)
         self._circle_btn(h_btns, "-", lambda: self.update_score("Home", -1), "#999")
 
-        tk.Label(score_grid, text=":", font=("Arial", 40, "bold"), bg=RSK_WHITE, fg="#ccc").grid(row=0, column=1, pady=20)
+        self.score_divider_label = tk.Label(self.score_grid, text=":", font=("Arial", 40, "bold"), bg=self.controller_card_bg, fg="#ccc")
+        self.score_divider_label.grid(row=0, column=1, pady=20)
 
         # NEU: Text auf Spielplan Rechts geändert
-        away_frame = tk.Frame(score_grid, bg=RSK_WHITE)
+        away_frame = tk.Frame(self.score_grid, bg=self.controller_card_bg)
         away_frame.grid(row=0, column=2, padx=10)
-        tk.Label(away_frame, text=self.scoreboard.team_away_name, font=("Arial", 14, "bold"), bg=RSK_WHITE, fg="#555").pack() 
-        self.lbl_score_away = tk.Label(away_frame, text="0", font=("Arial", 50, "bold"), bg=RSK_WHITE, fg=TEXT_COLOR)
+        self.away_title_label = tk.Label(away_frame, text=self.scoreboard.team_away_name.get(), font=("Arial", 14, "bold"), bg=self.controller_card_bg, fg="#555")
+        self.away_title_label.pack()
+        self.lbl_score_away = tk.Label(away_frame, text="0", font=("Arial", 50, "bold"), bg=self.controller_card_bg, fg=self.controller_text_color)
         self.lbl_score_away.pack()
-        a_btns = tk.Frame(away_frame, bg=RSK_WHITE)
+        a_btns = tk.Frame(away_frame, bg=self.controller_card_bg)
         a_btns.pack()
         self._circle_btn(a_btns, "+", lambda: self.update_score("Away", 1), RSK_BLUE)
         self._circle_btn(a_btns, "-", lambda: self.update_score("Away", -1), "#999")
 
     def _create_card_audio(self, parent):
-        card = tk.Frame(parent, bg=RSK_WHITE, bd=1, relief="flat")
-        card.pack(fill="x", pady=(0, 0), ipady=5) 
+        self.audio_card = tk.Frame(parent, bg=self.controller_card_bg, bd=1, relief="flat")
+        self.audio_card.pack(fill="x", pady=(0, 0), ipady=5)
 
-        top = tk.Frame(card, bg=RSK_WHITE)
-        top.pack(fill="x", padx=10, pady=5)
-        tk.Label(top, text="JINGLE / AUDIO", font=("Arial", 12, "bold"), bg=RSK_WHITE, fg=RSK_BLUE).pack(anchor="w")
-        self.file_label = tk.Label(top, text="(Keine Datei ausgewählt)", font=("Arial", 9, "italic"), bg=RSK_WHITE, fg="#888", anchor="w")
+        self.audio_top_frame = tk.Frame(self.audio_card, bg=self.controller_card_bg)
+        self.audio_top_frame.pack(fill="x", padx=10, pady=5)
+        tk.Label(self.audio_top_frame, text="JINGLE / AUDIO", font=("Arial", 12, "bold"), bg=self.controller_card_bg, fg=RSK_BLUE).pack(anchor="w")
+        self.file_label = tk.Label(self.audio_top_frame, text="(Keine Datei ausgewählt)", font=("Arial", 9, "italic"), bg=self.controller_card_bg, fg="#888", anchor="w")
         self.file_label.pack(fill="x")
-        
-        auto_jingle_frame = tk.Frame(card, bg=RSK_WHITE)
-        auto_jingle_frame.pack(fill="x", padx=10, pady=(0, 5))
-        
+
+        self.auto_jingle_frame = tk.Frame(self.audio_card, bg=self.controller_card_bg)
+        self.auto_jingle_frame.pack(fill="x", padx=10, pady=(0, 5))
+
         self.chk_auto_jingle = tk.Checkbutton(
-            auto_jingle_frame, 
-            text="Automatische Wiedergabe in der letzten Minute aktivieren", 
-            variable=self.auto_jingle_enabled, 
-            bg=RSK_WHITE, 
-            font=("Arial", 10), 
-            fg=TEXT_COLOR,
+            self.auto_jingle_frame,
+            text="Automatische Wiedergabe in der letzten Minute aktivieren",
+            variable=self.auto_jingle_enabled,
+            bg=self.controller_card_bg,
+            font=("Arial", 10),
+            fg=self.controller_text_color,
             relief="flat",
             cursor="hand2"
         )
         self.chk_auto_jingle.pack(anchor="w")
 
 
-        ctrl_frame = tk.Frame(card, bg=RSK_WHITE)
-        ctrl_frame.pack(pady=5)
-        self._icon_btn(ctrl_frame, "📂 Wählen", self.choose_jingle, "#6c757d").pack(side="left", padx=2) 
-        self._icon_btn(ctrl_frame, "▶ PLAY", self.play_jingle, ACCENT_GREEN).pack(side="left", padx=2)
-        self._icon_btn(ctrl_frame, "■ STOP", self.stop_jingle, ACCENT_RED).pack(side="left", padx=2)
+        self.audio_ctrl_frame = tk.Frame(self.audio_card, bg=self.controller_card_bg)
+        self.audio_ctrl_frame.pack(pady=5)
+        self._icon_btn(self.audio_ctrl_frame, "📂 Wählen", self.choose_jingle, "#6c757d").pack(side="left", padx=2)
+        self._icon_btn(self.audio_ctrl_frame, "▶ PLAY", self.play_jingle, ACCENT_GREEN).pack(side="left", padx=2)
+        self._icon_btn(self.audio_ctrl_frame, "■ STOP", self.stop_jingle, ACCENT_RED).pack(side="left", padx=2)
 
-        vis_frame = tk.Frame(card, bg=RSK_WHITE, padx=10, pady=5)
-        vis_frame.pack(fill="x") 
-        self.wave_canvas = tk.Canvas(vis_frame, height=80, bg="#FAFAFA", highlightthickness=0)
-        self.wave_canvas.pack(fill="x") 
-        
-        leg = tk.Frame(vis_frame, bg=RSK_WHITE)
+        self.audio_vis_frame = tk.Frame(self.audio_card, bg=self.controller_card_bg, padx=10, pady=5)
+        self.audio_vis_frame.pack(fill="x")
+        self.wave_canvas = tk.Canvas(self.audio_vis_frame, height=80, bg="#FAFAFA", highlightthickness=0)
+        self.wave_canvas.pack(fill="x")
+
+        leg = tk.Frame(self.audio_vis_frame, bg=self.controller_card_bg)
         leg.pack(fill="x", pady=2)
-        tk.Label(leg, text="■ Pause", fg=ACCENT_GREEN, bg=RSK_WHITE, font=("Arial", 8)).pack(side="left", padx=5)
-        tk.Label(leg, text="■ Laut", fg=ACCENT_RED, bg=RSK_WHITE, font=("Arial", 8)).pack(side="left", padx=5)
+        tk.Label(leg, text="■ Pause", fg=ACCENT_GREEN, bg=self.controller_card_bg, font=("Arial", 8)).pack(side="left", padx=5)
+        tk.Label(leg, text="■ Laut", fg=ACCENT_RED, bg=self.controller_card_bg, font=("Arial", 8)).pack(side="left", padx=5)
 
         style = ttk.Style()
         style.theme_use('default')
