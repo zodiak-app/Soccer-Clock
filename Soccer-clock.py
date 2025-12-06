@@ -324,12 +324,12 @@ class FussballTimer:
         self._icon_btn(ctrl_frame, "▶ PLAY", self.play_jingle, ACCENT_GREEN).pack(side="left", padx=2)
         self._icon_btn(ctrl_frame, "■ STOP", self.stop_jingle, ACCENT_RED).pack(side="left", padx=2)
 
-        vis_frame = tk.Frame(card, bg=RSK_WHITE, padx=10, pady=5)
-        vis_frame.pack(fill="x") 
-        self.wave_canvas = tk.Canvas(vis_frame, height=80, bg="#FAFAFA", highlightthickness=0)
-        self.wave_canvas.pack(fill="x") 
-        
-        leg = tk.Frame(vis_frame, bg=RSK_WHITE)
+        self.vis_frame = tk.Frame(card, bg=RSK_WHITE, padx=10, pady=5)
+        self.vis_frame.pack(fill="x")
+        self.wave_canvas = tk.Canvas(self.vis_frame, height=80, bg="#FAFAFA", highlightthickness=0)
+        self.wave_canvas.pack(fill="x")
+
+        leg = tk.Frame(self.vis_frame, bg=RSK_WHITE)
         leg.pack(fill="x", pady=2)
         tk.Label(leg, text="■ Pause", fg=ACCENT_GREEN, bg=RSK_WHITE, font=("Arial", 8)).pack(side="left", padx=5)
         tk.Label(leg, text="■ Laut", fg=ACCENT_RED, bg=RSK_WHITE, font=("Arial", 8)).pack(side="left", padx=5)
@@ -337,7 +337,7 @@ class FussballTimer:
         style = ttk.Style()
         style.theme_use('default')
         style.configure("RSK.Horizontal.TProgressbar", thickness=5, background=RSK_BLUE, troughcolor="#E0E0E0", borderwidth=0)
-        self.progress = ttk.Progressbar(vis_frame, orient="horizontal", mode="determinate", style="RSK.Horizontal.TProgressbar")
+        self.progress = ttk.Progressbar(self.vis_frame, orient="horizontal", mode="determinate", style="RSK.Horizontal.TProgressbar")
         self.progress.pack(fill="x", pady=(5,0))
 
 
