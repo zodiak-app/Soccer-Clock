@@ -109,13 +109,16 @@ class ScoreboardDisplay:
         self.half_str.set(half_text)
         self.home_score_str.set(str(home_score))
         self.away_score_str.set(str(away_score))
-        
+
         if time_color == self.bg_color:
-            self.lbl_time.config(fg=self.text_color)
+            time_fg = self.text_color
         elif time_color == ACCENT_RED:
-            self.lbl_time.config(fg=ACCENT_RED)
+            time_fg = ACCENT_RED
         else:
-            self.lbl_time.config(fg=time_color)
+            time_fg = time_color
+
+        self.lbl_time.config(fg=time_fg)
+        self.lbl_time_title.config(fg=ACCENT_RED if time_fg == ACCENT_RED else self.text_color)
         
         if home_score > away_score:
             self.lbl_score_home.config(fg=self.text_color)
@@ -634,10 +637,11 @@ class FussballTimer:
                 self.current_match_duration_seconds = self._get_desired_match_seconds()
                 self.half_label.config(text="SPIEL LÄUFT")
                 self.timer_label.config(fg=RSK_BLUE)
-                
+                self.jingle_triggered = False
+
             self.running = True
             if self.scoreboard_enabled.get():
-                self.scoreboard.show() 
+                self.scoreboard.show()
             self._tick()
             
     def stop_timer(self): 
@@ -658,7 +662,7 @@ class FussballTimer:
         
         self.timer_label.config(text="0:00", fg=RSK_BLUE)
         self.half_label.config(text="SPIEL BEREIT")
-        
+
         self.scores = {self.team_home_name: 0, self.team_away_name: 0}
         self.lbl_score_home.config(text="0")
         self.lbl_score_away.config(text="0")
@@ -673,32 +677,33 @@ class FussballTimer:
             seconds_part = self.seconds % 60
             
             target_time = self.current_match_duration_seconds
-            last_minute_threshold = target_time - 60 
-            
-            color_to_use = RSK_BLUE 
+            last_minute_threshold = target_time - 60
+
+            color_to_use = RSK_BLUE
             half_text = "SPIEL LÄUFT"
-            
-            if self.seconds >= last_minute_threshold: 
-                color_to_use = ACCENT_RED 
-                
+
+            if self.seconds >= last_minute_threshold:
+                color_to_use = ACCENT_RED
+
                 if not self.jingle_triggered and self.jingle_paths and self.auto_jingle_enabled.get():
                     path_to_play = random.choice(self.jingle_paths)
                     self.start_jingle_load_and_play(path_to_play)
                     self.jingle_triggered = True
-            
+
             time_str = f"{minutes}:{seconds_part:02}"
             self.timer_label.config(text=time_str, fg=color_to_use)
-            
+
             self._update_scoreboard_display(color_to_use, half_text)
-            
-            if self.seconds >= target_time: 
+
+            if self.seconds >= target_time:
                 self.running = False
-                color_to_use = "#FF8C00" 
-                self.timer_label.config(fg=color_to_use) 
+                self.stop_jingle()
+                end_color = ACCENT_RED if color_to_use == ACCENT_RED else "#FF8C00"
+                self.timer_label.config(fg=end_color)
                 self.half_label.config(text="SPIEL ENDE")
-                
-                self._update_scoreboard_display(color_to_use, "SPIEL ENDE")
-                return 
+
+                self._update_scoreboard_display(end_color, "SPIEL ENDE")
+                return
 
             self._after_id = self.root.after(1000, self._tick)
 
