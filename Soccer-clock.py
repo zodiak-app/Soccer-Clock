@@ -23,15 +23,24 @@ ACCENT_RED = "#dc3545"
 class ScoreboardDisplay:
     """Repräsentiert das separate Anzeigetafel-Fenster mit blau-weißem Schema."""
 
-    def __init__(self, master, bg_color=RSK_BLUE, text_color=RSK_WHITE, home_name="Spielplan Links", away_name="Spielplan Rechts"):
+    def __init__(
+        self,
+        master,
+        bg_color=RSK_BLUE,
+        text_color=RSK_WHITE,
+        home_name="Spielplan Links",
+        away_name="Spielplan Rechts",
+        board_title="FC RSK FREYBURG"
+    ):
         self.window = tk.Toplevel(master)
-        self.window.title("Anzeigetafel - FC RSK Freyburg")
+        self.window.title(f"Anzeigetafel - {board_title}")
         self.window.geometry("1024x576")
         self.window.configure(bg=bg_color)
         self.window.protocol("WM_DELETE_WINDOW", self.hide)
 
         self.bg_color = bg_color
         self.text_color = text_color
+        self.board_title = tk.StringVar(value=board_title)
 
         # Variablen für die Anzeige
         self.time_str = tk.StringVar(value="00:00")
@@ -59,7 +68,7 @@ class ScoreboardDisplay:
         # --- TITEL (GANZ OBEN) ---
         self.title_frame = tk.Frame(self.main_frame, bg=self.bg_color)
         self.title_frame.grid(row=0, column=0, columnspan=3, pady=(0, 5), sticky="n")
-        self.lbl_title = tk.Label(self.title_frame, text="FC RSK FREYBURG", font=("Helvetica", 28, "bold"), bg=self.bg_color, fg=self.text_color)
+        self.lbl_title = tk.Label(self.title_frame, textvariable=self.board_title, font=("Helvetica", 28, "bold"), bg=self.bg_color, fg=self.text_color)
         self.lbl_title.pack()
 
         # --- SPIELSTAND - HOME (Spielplan Links) ---
@@ -137,6 +146,11 @@ class ScoreboardDisplay:
 
     def set_resolution(self, width, height):
         self.window.geometry(f"{width}x{height}")
+        self.window.update_idletasks()
+
+    def set_board_title(self, title):
+        self.board_title.set(title)
+        self.window.title(f"Anzeigetafel - {title}")
 
 
 # ====================================================================
@@ -157,6 +171,7 @@ class FussballTimer:
         self.controller_text_color = TEXT_COLOR
         self.scoreboard_bg_color = RSK_BLUE
         self.scoreboard_text_color = RSK_WHITE
+        self.scoreboard_title = "FC RSK FREYBURG"
         self.root.configure(bg=self.controller_bg_color)
 
         # --- Logik-Variablen ---
@@ -185,7 +200,8 @@ class FussballTimer:
             bg_color=self.scoreboard_bg_color,
             text_color=self.scoreboard_text_color,
             home_name=self.team_home_name,
-            away_name=self.team_away_name
+            away_name=self.team_away_name,
+            board_title=self.scoreboard_title
         )
         self.scoreboard_enabled.trace_add("write", self._toggle_scoreboard)
         
@@ -291,6 +307,7 @@ class FussballTimer:
         self.controller_height_var = tk.IntVar(value=self.controller_height.get())
         self.scoreboard_width_var = tk.IntVar(value=self.scoreboard_width.get())
         self.scoreboard_height_var = tk.IntVar(value=self.scoreboard_height.get())
+        self.scoreboard_title_var = tk.StringVar(value=self.scoreboard_title)
 
         self.controller_bg_color_var = tk.StringVar(value=self.controller_bg_color)
         self.controller_header_color_var = tk.StringVar(value=self.controller_header_color)
@@ -318,6 +335,8 @@ class FussballTimer:
         tk.Entry(section_names, textvariable=self.home_name_var).pack(fill="x", padx=5)
         tk.Label(section_names, text="Gast (rechts)", bg=self.controller_bg_color, fg=self.controller_text_color).pack(anchor="w", padx=5, pady=2)
         tk.Entry(section_names, textvariable=self.away_name_var).pack(fill="x", padx=5, pady=(0, 5))
+        tk.Label(section_names, text="Anzeigetafel Titel", bg=self.controller_bg_color, fg=self.controller_text_color).pack(anchor="w", padx=5, pady=2)
+        tk.Entry(section_names, textvariable=self.scoreboard_title_var).pack(fill="x", padx=5)
 
         section_res = tk.LabelFrame(self.settings_window, text="Auflösung", bg=self.controller_bg_color, fg=self.controller_text_color)
         section_res.pack(fill="x", padx=10, pady=10)
@@ -412,6 +431,8 @@ class FussballTimer:
         self.scoreboard_text_color = self.scoreboard_text_color_var.get()
 
         self._set_team_names(self.home_name_var.get().strip(), self.away_name_var.get().strip())
+        self.scoreboard_title = self.scoreboard_title_var.get().strip() or self.scoreboard_title
+        self.scoreboard.set_board_title(self.scoreboard_title)
 
         try:
             cw = max(300, int(self.controller_width_var.get()))
@@ -422,6 +443,8 @@ class FussballTimer:
         self.controller_width.set(cw)
         self.controller_height.set(ch)
         self.root.geometry(f"{cw}x{ch}")
+        self.root.minsize(cw, ch)
+        self.root.update_idletasks()
 
         try:
             sw = max(300, int(self.scoreboard_width_var.get()))
