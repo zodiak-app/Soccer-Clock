@@ -187,6 +187,13 @@ class FussballTimer:
 
         self.mode_info_var = tk.StringVar(value="")
 
+        # Team- und Spielzeit-Defaults müssen vor dem Laden der Einstellungen existieren
+        self.team_home_name = "Spielplan Links"
+        self.team_away_name = "Spielplan Rechts"
+        self.match_duration_minutes = tk.IntVar(value=45)
+        self.current_match_duration_seconds = self.match_duration_minutes.get() * 60
+        self.scores = {self.team_home_name: 0, self.team_away_name: 0}
+
         self._load_settings()
         self._update_mode_label()
 
@@ -200,18 +207,9 @@ class FussballTimer:
         self.running = False
         self._after_id = None
         
-        # NEU: Teamnamen im Controller aktualisiert
-        self.team_home_name = "Spielplan Links"
-        self.team_away_name = "Spielplan Rechts"
-
-        self.scores = {self.team_home_name: 0, self.team_away_name: 0}
-        
-        self.match_duration_minutes = tk.IntVar(value=45) 
-        self.current_match_duration_seconds = 45 * 60 
-        
         self.jingle_paths = []
         self.jingle_triggered = False
-        self.auto_jingle_enabled = tk.BooleanVar(value=True) 
+        self.auto_jingle_enabled = tk.BooleanVar(value=True)
         
         self.scoreboard = ScoreboardDisplay(
             root,
@@ -365,6 +363,7 @@ class FussballTimer:
         self.scores = {self.team_home_name: 0, self.team_away_name: 0}
 
         self.match_duration_minutes.set(int(data.get("match_duration", self.match_duration_minutes.get())))
+        self.current_match_duration_seconds = self.match_duration_minutes.get() * 60
         self._set_mode(data.get("match_mode", self.match_mode.get()))
 
     def _save_settings(self):
@@ -504,7 +503,23 @@ class FussballTimer:
         tk.Label(duration_row, text="Spielzeit (Minuten)", bg=self.controller_bg_color, fg=self.controller_text_color).pack(side="left", padx=5)
         tk.Entry(duration_row, width=6, textvariable=self.match_duration_var).pack(side="left")
 
-        mode_section = tk.LabelFrame(controller_section, text="Spielmodus", bg=self.controller_bg_color, fg=self.controller_text_color)
+        scoreboard_section = tk.LabelFrame(content, text="Anzeigetafel", bg=self.controller_bg_color, fg=self.controller_text_color)
+        scoreboard_section.pack(fill="x", pady=5)
+        tk.Label(scoreboard_section, text="Titel", bg=self.controller_bg_color, fg=self.controller_text_color).pack(anchor="w", padx=5, pady=(5, 2))
+        tk.Entry(scoreboard_section, textvariable=self.scoreboard_title_var).pack(fill="x", padx=5)
+        tk.Label(scoreboard_section, text="Heim (links)", bg=self.controller_bg_color, fg=self.controller_text_color).pack(anchor="w", padx=5, pady=2)
+        tk.Entry(scoreboard_section, textvariable=self.home_name_var).pack(fill="x", padx=5)
+        tk.Label(scoreboard_section, text="Gast (rechts)", bg=self.controller_bg_color, fg=self.controller_text_color).pack(anchor="w", padx=5, pady=2)
+        tk.Entry(scoreboard_section, textvariable=self.away_name_var).pack(fill="x", padx=5, pady=(0, 5))
+
+        board_res_row = tk.Frame(scoreboard_section, bg=self.controller_bg_color)
+        board_res_row.pack(fill="x", pady=5)
+        tk.Label(board_res_row, text="Auflösung (BxH)", bg=self.controller_bg_color, fg=self.controller_text_color).pack(side="left", padx=5)
+        tk.Entry(board_res_row, width=6, textvariable=self.scoreboard_width_var).pack(side="left")
+        tk.Label(board_res_row, text="x", bg=self.controller_bg_color, fg=self.controller_text_color).pack(side="left", padx=3)
+        tk.Entry(board_res_row, width=6, textvariable=self.scoreboard_height_var).pack(side="left")
+
+        mode_section = tk.LabelFrame(scoreboard_section, text="Spielmodus", bg=self.controller_bg_color, fg=self.controller_text_color)
         mode_section.pack(fill="x", pady=5, padx=5)
         tk.Radiobutton(
             mode_section,
@@ -524,22 +539,6 @@ class FussballTimer:
             fg=self.controller_text_color,
             anchor="w"
         ).pack(fill="x", pady=2)
-
-        scoreboard_section = tk.LabelFrame(content, text="Anzeigetafel", bg=self.controller_bg_color, fg=self.controller_text_color)
-        scoreboard_section.pack(fill="x", pady=5)
-        tk.Label(scoreboard_section, text="Titel", bg=self.controller_bg_color, fg=self.controller_text_color).pack(anchor="w", padx=5, pady=(5, 2))
-        tk.Entry(scoreboard_section, textvariable=self.scoreboard_title_var).pack(fill="x", padx=5)
-        tk.Label(scoreboard_section, text="Heim (links)", bg=self.controller_bg_color, fg=self.controller_text_color).pack(anchor="w", padx=5, pady=2)
-        tk.Entry(scoreboard_section, textvariable=self.home_name_var).pack(fill="x", padx=5)
-        tk.Label(scoreboard_section, text="Gast (rechts)", bg=self.controller_bg_color, fg=self.controller_text_color).pack(anchor="w", padx=5, pady=2)
-        tk.Entry(scoreboard_section, textvariable=self.away_name_var).pack(fill="x", padx=5, pady=(0, 5))
-
-        board_res_row = tk.Frame(scoreboard_section, bg=self.controller_bg_color)
-        board_res_row.pack(fill="x", pady=5)
-        tk.Label(board_res_row, text="Auflösung (BxH)", bg=self.controller_bg_color, fg=self.controller_text_color).pack(side="left", padx=5)
-        tk.Entry(board_res_row, width=6, textvariable=self.scoreboard_width_var).pack(side="left")
-        tk.Label(board_res_row, text="x", bg=self.controller_bg_color, fg=self.controller_text_color).pack(side="left", padx=3)
-        tk.Entry(board_res_row, width=6, textvariable=self.scoreboard_height_var).pack(side="left")
 
         section_colors = tk.LabelFrame(content, text="Farben (kompakt)", bg=self.controller_bg_color, fg=self.controller_text_color)
         section_colors.pack(fill="x", pady=5)
