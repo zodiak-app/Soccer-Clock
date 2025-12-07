@@ -186,6 +186,7 @@ class FussballTimer:
         self.current_half = 1
 
         self.mode_info_var = tk.StringVar(value="")
+        self.auto_jingle_enabled = tk.BooleanVar(value=True)
 
         # Team- und Spielzeit-Defaults müssen vor dem Laden der Einstellungen existieren
         self.team_home_name = "Spielplan Links"
@@ -206,10 +207,9 @@ class FussballTimer:
         self.seconds = 0
         self.running = False
         self._after_id = None
-        
+
         self.jingle_paths = []
         self.jingle_triggered = False
-        self.auto_jingle_enabled = tk.BooleanVar(value=True)
         
         self.scoreboard = ScoreboardDisplay(
             root,
@@ -281,15 +281,6 @@ class FussballTimer:
         )
         self.header_label.pack(pady=10, side="left", padx=10)
 
-        self.mode_label = tk.Label(
-            self.header_frame,
-            textvariable=self.mode_info_var,
-            font=("Arial", 10, "bold"),
-            bg=self.controller_header_color,
-            fg=self.scoreboard_text_color
-        )
-        self.mode_label.pack(side="right", padx=10)
-
         self.settings_btn = tk.Button(
             self.header_frame,
             text="⚙ Einstellungen",
@@ -329,7 +320,13 @@ class FussballTimer:
         self.current_half = min(self.current_half, self.total_halves)
         self.jingle_triggered = False
         if hasattr(self, "next_half_btn"):
-            self.next_half_btn.config(state="disabled" if self.total_halves == 1 else "normal")
+            if self.total_halves == 1:
+                if self.next_half_btn.winfo_manager():
+                    self.next_half_btn.pack_forget()
+            else:
+                if not self.next_half_btn.winfo_manager():
+                    self.next_half_btn.pack(side="left", padx=5)
+                self.next_half_btn.config(state="normal")
         self._sync_auto_jingle_controls()
         self._update_mode_label()
         self._update_half_ready_label()
@@ -419,11 +416,7 @@ class FussballTimer:
         auto_on = mode == "halle"
         self.auto_jingle_enabled.set(auto_on)
         if hasattr(self, "chk_auto_jingle"):
-            label_text = "Automatische Wiedergabe in der letzten Minute aktivieren"
-            if mode == "halle":
-                label_text += " (Hallenmodus)"
-            else:
-                label_text += " (im Normalmodus deaktiviert)"
+            label_text = "Auto-Jingle letzte Minute"
             self.chk_auto_jingle.configure(state="disabled", text=label_text)
 
     def _next_half(self):
@@ -574,6 +567,16 @@ class FussballTimer:
             cursor="hand2"
         )
         self.scoreboard_toggle.pack(side="right")
+
+        self.mode_label = tk.Label(
+            self.scoreboard_option_card,
+            textvariable=self.mode_info_var,
+            font=("Arial", 10, "bold"),
+            bg=self.controller_card_bg,
+            fg=RSK_BLUE,
+            anchor="w"
+        )
+        self.mode_label.pack(fill="x", pady=(4, 0))
     
     def _toggle_scoreboard(self, *args):
         if self.scoreboard_enabled.get():
@@ -587,12 +590,14 @@ class FussballTimer:
         self.main_container.configure(bg=self.controller_bg_color)
         self.header_frame.configure(bg=self.controller_header_color)
         self.header_label.configure(bg=self.controller_header_color, fg=self.scoreboard_text_color)
-        self.mode_label.configure(bg=self.controller_header_color, fg=self.scoreboard_text_color)
         self.settings_btn.configure(bg=self.controller_header_color, fg=self.scoreboard_text_color)
 
         for widget in [self.scoreboard_option_card, self.timer_card, self.score_card, self.audio_card]:
             widget.configure(bg=self.controller_card_bg)
             self._recolor_container(widget, self.controller_card_bg)
+
+        if hasattr(self, "mode_label"):
+            self.mode_label.configure(bg=self.controller_card_bg, fg=RSK_BLUE)
 
     def _set_team_names(self, home, away):
         old_home = self.home_title_label.cget("text")
@@ -742,7 +747,7 @@ class FussballTimer:
         self.audio_top_frame = tk.Frame(self.audio_card, bg=self.controller_card_bg)
         self.audio_top_frame.pack(fill="x", padx=10, pady=5)
         tk.Label(self.audio_top_frame, text="JINGLE / AUDIO", font=("Arial", 12, "bold"), bg=self.controller_card_bg, fg=RSK_BLUE).pack(anchor="w")
-        self.file_label = tk.Label(self.audio_top_frame, text="(Keine Datei ausgewählt)", font=("Arial", 9, "italic"), bg=self.controller_card_bg, fg="#888", anchor="w")
+        self.file_label = tk.Label(self.audio_top_frame, text="(Kein Jingle gewählt)", font=("Arial", 9, "italic"), bg=self.controller_card_bg, fg="#888", anchor="w")
         self.file_label.pack(fill="x")
 
         self.auto_jingle_frame = tk.Frame(self.audio_card, bg=self.controller_card_bg)
@@ -750,7 +755,7 @@ class FussballTimer:
 
         self.chk_auto_jingle = tk.Checkbutton(
             self.auto_jingle_frame,
-            text="Automatische Wiedergabe in der letzten Minute aktivieren",
+            text="Auto-Jingle letzte Minute",
             variable=self.auto_jingle_enabled,
             bg=self.controller_card_bg,
             font=("Arial", 10),
@@ -923,9 +928,9 @@ class FussballTimer:
         paths = filedialog.askopenfilenames(filetypes=[("WAV Datei", "*.wav")])
         if not paths: return
         self.jingle_paths = list(paths)
-        
+
         count = len(self.jingle_paths)
-        self.file_label.config(text=f"{count} Datei{'en' if count != 1 else ''} ausgewählt (Zufallswiedergabe)")
+        self.file_label.config(text=f"{count} Jingle{'s' if count != 1 else ''} geladen")
         
         if self.jingle_paths:
             path_to_analyze = self.jingle_paths[0]
