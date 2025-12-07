@@ -45,7 +45,6 @@ class ScoreboardDisplay:
 
         # Variablen für die Anzeige
         self.time_str = tk.StringVar(value="00:00")
-        self.half_str = tk.StringVar(value="SPIEL BEREIT")
         self.home_score_str = tk.StringVar(value="0")
         self.away_score_str = tk.StringVar(value="0")
 
@@ -72,9 +71,6 @@ class ScoreboardDisplay:
         self.title_frame.grid(row=0, column=0, columnspan=3, pady=(0, 5), sticky="n")
         self.lbl_title = tk.Label(self.title_frame, textvariable=self.board_title, font=("Helvetica", 28, "bold"), bg=self.bg_color, fg=self.text_color)
         self.lbl_title.pack()
-
-        self.half_label = tk.Label(self.title_frame, textvariable=self.half_str, font=("Arial", 14, "bold"), bg=self.bg_color, fg=self.text_color)
-        self.half_label.pack(pady=(2, 0))
 
         # --- SPIELSTAND - HOME (Spielplan Links) ---
         self.home_frame = tk.Frame(self.main_frame, bg=self.bg_color)
@@ -105,9 +101,8 @@ class ScoreboardDisplay:
         self.lbl_time.pack()
 
     def update(self, time_str, half_text, home_score, away_score, time_color):
-        """Aktualisiert alle Anzeigewerte."""
+        """Aktualisiert alle Anzeigewerte ohne Statuszeile."""
         self.time_str.set(time_str)
-        self.half_str.set(half_text)
         self.home_score_str.set(str(home_score))
         self.away_score_str.set(str(away_score))
 
@@ -150,7 +145,6 @@ class ScoreboardDisplay:
         self.lbl_score_away.configure(bg=self.bg_color, fg=self.text_color)
         self.lbl_time.configure(bg=self.bg_color, fg=self.text_color)
         self.lbl_time_title.configure(bg=self.bg_color, fg=self.text_color)
-        self.half_label.configure(bg=self.bg_color, fg=self.text_color)
         self.lbl_divider.configure(bg=self.bg_color)
 
     def set_team_names(self, home, away):
@@ -183,12 +177,18 @@ class FussballTimer:
         self.scoreboard_bg_color = RSK_BLUE
         self.scoreboard_text_color = RSK_WHITE
         self.scoreboard_title = "FC RSK FREYBURG"
+        self.scoreboard_enabled = tk.BooleanVar(value=False)
+        self.scoreboard_width = tk.IntVar(value=1024)
+        self.scoreboard_height = tk.IntVar(value=576)
         self.settings_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "settings.json")
         self.match_mode = tk.StringVar(value="normal")
         self.total_halves = 2
         self.current_half = 1
 
+        self.mode_info_var = tk.StringVar(value="")
+
         self._load_settings()
+        self._update_mode_label()
 
         self.root.title(f"{self.controller_title.get()} - Steuerpult")
         self.root.geometry(f"{self.controller_width.get()}x{self.controller_height.get()}")
@@ -213,9 +213,6 @@ class FussballTimer:
         self.jingle_triggered = False
         self.auto_jingle_enabled = tk.BooleanVar(value=True) 
         
-        self.scoreboard_enabled = tk.BooleanVar(value=False)
-        self.scoreboard_width = tk.IntVar(value=1024)
-        self.scoreboard_height = tk.IntVar(value=576)
         self.scoreboard = ScoreboardDisplay(
             root,
             bg_color=self.scoreboard_bg_color,
@@ -286,6 +283,15 @@ class FussballTimer:
         )
         self.header_label.pack(pady=10, side="left", padx=10)
 
+        self.mode_label = tk.Label(
+            self.header_frame,
+            textvariable=self.mode_info_var,
+            font=("Arial", 10, "bold"),
+            bg=self.controller_header_color,
+            fg=self.scoreboard_text_color
+        )
+        self.mode_label.pack(side="right", padx=10)
+
         self.settings_btn = tk.Button(
             self.header_frame,
             text="⚙ Einstellungen",
@@ -327,6 +333,7 @@ class FussballTimer:
         if hasattr(self, "next_half_btn"):
             self.next_half_btn.config(state="disabled" if self.total_halves == 1 else "normal")
         self._sync_auto_jingle_controls()
+        self._update_mode_label()
         self._update_half_ready_label()
 
     def _load_settings(self):
@@ -389,6 +396,15 @@ class FussballTimer:
     def _get_half_prefix(self):
         return "HALLE" if self.match_mode.get() == "halle" else f"{self.current_half}. HALBZEIT"
 
+    def _get_mode_display_text(self):
+        if self.match_mode.get() == "halle":
+            return "Modus: Halle (1 Halbzeit, Auto-Jingle)"
+        return "Modus: Normal (2 Halbzeiten)"
+
+    def _update_mode_label(self):
+        if hasattr(self, "mode_info_var"):
+            self.mode_info_var.set(self._get_mode_display_text())
+
     def _update_half_ready_label(self):
         if not hasattr(self, "half_label"):
             return
@@ -418,10 +434,12 @@ class FussballTimer:
         self.stop_jingle()
         self.stop_timer()
         self.current_half += 1
-        self.seconds = 0
+        duration = self._get_desired_match_seconds()
+        self.seconds = duration * (self.current_half - 1)
         self.jingle_triggered = False
-        self.current_match_duration_seconds = self._get_desired_match_seconds()
-        self.timer_label.config(text="0:00", fg=RSK_BLUE)
+        self.current_match_duration_seconds = duration * self.current_half if self.match_mode.get() == "normal" else duration
+        minutes = self.seconds // 60
+        self.timer_label.config(text=f"{minutes}:{self.seconds % 60:02}", fg=RSK_BLUE)
         self._update_half_ready_label()
 
     def _open_settings_menu(self):
@@ -538,15 +556,17 @@ class FussballTimer:
         tk.Button(btn_row, text="Schließen", command=self.settings_window.destroy, bg=ACCENT_RED, fg=RSK_WHITE).pack(side="right", padx=5)
         
     def _create_card_scoreboard_option_top(self):
-        self.scoreboard_option_card = tk.Frame(self.root, bg=self.controller_card_bg, bd=1, relief="flat")
-        self.scoreboard_option_card.pack(fill="x", pady=(0, 10), padx=10, ipady=5)
+        self.scoreboard_option_card = tk.Frame(self.root, bg=self.controller_card_bg, bd=1, relief="flat", padx=10, pady=6)
+        self.scoreboard_option_card.pack(fill="x", pady=(0, 8), padx=10)
 
-        self.scoreboard_option_label = tk.Label(self.scoreboard_option_card, text="ANZEIGE", font=("Arial", 12, "bold"), bg=self.controller_card_bg, fg=RSK_BLUE)
-        self.scoreboard_option_label.pack(anchor="w", padx=10, pady=(5, 0))
+        row = tk.Frame(self.scoreboard_option_card, bg=self.controller_card_bg)
+        row.pack(fill="x")
+
+        tk.Label(row, text="Anzeigetafel", font=("Arial", 10, "bold"), bg=self.controller_card_bg, fg=RSK_BLUE).pack(side="left")
 
         self.scoreboard_toggle = tk.Checkbutton(
-            self.scoreboard_option_card,
-            text="Anzeigetafel (Zweites Fenster) anzeigen",
+            row,
+            text="Fenster anzeigen",
             variable=self.scoreboard_enabled,
             bg=self.controller_card_bg,
             font=("Arial", 10),
@@ -554,7 +574,7 @@ class FussballTimer:
             relief="flat",
             cursor="hand2"
         )
-        self.scoreboard_toggle.pack(anchor="w", padx=10, pady=5)
+        self.scoreboard_toggle.pack(side="right")
     
     def _toggle_scoreboard(self, *args):
         if self.scoreboard_enabled.get():
@@ -568,6 +588,7 @@ class FussballTimer:
         self.main_container.configure(bg=self.controller_bg_color)
         self.header_frame.configure(bg=self.controller_header_color)
         self.header_label.configure(bg=self.controller_header_color, fg=self.scoreboard_text_color)
+        self.mode_label.configure(bg=self.controller_header_color, fg=self.scoreboard_text_color)
         self.settings_btn.configure(bg=self.controller_header_color, fg=self.scoreboard_text_color)
 
         for widget in [self.scoreboard_option_card, self.timer_card, self.score_card, self.audio_card]:
@@ -783,9 +804,11 @@ class FussballTimer:
         if not self.running:
             if self.seconds == 0:
                 self.current_match_duration_seconds = self._get_desired_match_seconds()
-                self.half_label.config(text=f"{self._get_half_prefix()} LÄUFT")
-                self.timer_label.config(fg=RSK_BLUE)
                 self.jingle_triggered = False
+
+            self.half_label.config(text=f"{self._get_half_prefix()} LÄUFT")
+            if self.seconds < self.current_match_duration_seconds:
+                self.timer_label.config(fg=RSK_BLUE)
 
             self.running = True
             if self.scoreboard_enabled.get():
