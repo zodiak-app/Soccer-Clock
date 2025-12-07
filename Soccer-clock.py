@@ -167,7 +167,7 @@ class ScoreboardDisplay:
 class FussballTimer:
     def __init__(self, root):
         self.root = root
-        self.controller_title = tk.StringVar(value="FC RSK FREYBURG HALLE")
+        self.controller_title = tk.StringVar(value="FC RSK FREYBURG")
         self.controller_width = tk.IntVar(value=400)
         self.controller_height = tk.IntVar(value=800)
         self.controller_bg_color = BG_COLOR
