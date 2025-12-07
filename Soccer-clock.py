@@ -187,6 +187,7 @@ class FussballTimer:
 
         self.mode_info_var = tk.StringVar(value="")
         self.auto_jingle_enabled = tk.BooleanVar(value=True)
+        self.auto_jingle_user_choice = None
 
         # Team- und Spielzeit-Defaults müssen vor dem Laden der Einstellungen existieren
         self.team_home_name = "Spielplan Links"
@@ -361,6 +362,9 @@ class FussballTimer:
 
         self.match_duration_minutes.set(int(data.get("match_duration", self.match_duration_minutes.get())))
         self.current_match_duration_seconds = self.match_duration_minutes.get() * 60
+        if "auto_jingle_enabled" in data:
+            self.auto_jingle_enabled.set(bool(data.get("auto_jingle_enabled", self.auto_jingle_enabled.get())))
+            self.auto_jingle_user_choice = self.auto_jingle_enabled.get()
         self._set_mode(data.get("match_mode", self.match_mode.get()))
 
     def _save_settings(self):
@@ -381,6 +385,7 @@ class FussballTimer:
             "team_away_name": self.team_away_name,
             "match_duration": self.match_duration_minutes.get(),
             "match_mode": self.match_mode.get(),
+            "auto_jingle_enabled": self.auto_jingle_enabled.get(),
         }
 
         try:
@@ -411,13 +416,19 @@ class FussballTimer:
         if hasattr(self, "timer_label"):
             self._update_scoreboard_display(self.timer_label['fg'], ready_text)
 
+    def _on_auto_jingle_toggled(self):
+        self.auto_jingle_user_choice = self.auto_jingle_enabled.get()
+
     def _sync_auto_jingle_controls(self):
         mode = self.match_mode.get()
         auto_on = mode == "halle"
-        self.auto_jingle_enabled.set(auto_on)
+        if self.auto_jingle_user_choice is None:
+            self.auto_jingle_enabled.set(auto_on)
         if hasattr(self, "chk_auto_jingle"):
             label_text = "Auto-Jingle letzte Minute"
-            self.chk_auto_jingle.configure(state="disabled", text=label_text)
+            if mode == "halle":
+                label_text += " (empfohlen)"
+            self.chk_auto_jingle.configure(state="normal", text=label_text)
 
     def _next_half(self):
         if self.match_mode.get() == "halle" or self.current_half >= self.total_halves:
@@ -757,6 +768,7 @@ class FussballTimer:
             self.auto_jingle_frame,
             text="Auto-Jingle letzte Minute",
             variable=self.auto_jingle_enabled,
+            command=self._on_auto_jingle_toggled,
             bg=self.controller_card_bg,
             font=("Arial", 10),
             fg=self.controller_text_color,
