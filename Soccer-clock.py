@@ -6,7 +6,8 @@ import time
 import wave
 import struct
 import threading
-import random 
+import random
+import json
 
 # --- FARBPALETTE FC RSK FREYBURG ---
 RSK_BLUE = "#00529F"
@@ -173,11 +174,8 @@ class FussballTimer:
     def __init__(self, root):
         self.root = root
         self.controller_title = tk.StringVar(value="FC RSK FREYBURG HALLE")
-        self.root.title(f"{self.controller_title.get()} - Steuerpult")
         self.controller_width = tk.IntVar(value=400)
         self.controller_height = tk.IntVar(value=800)
-        self.root.geometry(f"{self.controller_width.get()}x{self.controller_height.get()}")
-        self.root.minsize(400, 800)
         self.controller_bg_color = BG_COLOR
         self.controller_header_color = RSK_BLUE
         self.controller_card_bg = RSK_WHITE
@@ -185,6 +183,16 @@ class FussballTimer:
         self.scoreboard_bg_color = RSK_BLUE
         self.scoreboard_text_color = RSK_WHITE
         self.scoreboard_title = "FC RSK FREYBURG"
+        self.settings_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "settings.json")
+        self.match_mode = tk.StringVar(value="normal")
+        self.total_halves = 2
+        self.current_half = 1
+
+        self._load_settings()
+
+        self.root.title(f"{self.controller_title.get()} - Steuerpult")
+        self.root.geometry(f"{self.controller_width.get()}x{self.controller_height.get()}")
+        self.root.minsize(self.controller_width.get(), self.controller_height.get())
         self.root.configure(bg=self.controller_bg_color)
 
         # --- Logik-Variablen ---
@@ -229,15 +237,22 @@ class FussballTimer:
         self.jingle_start_time = None
         self.wave_reduced = None
         self.wave_duration = 0
-        self.max_amp_scale = 1.0 
-        self.current_jingle_path = None 
-        
+        self.max_amp_scale = 1.0
+        self.current_jingle_path = None
+
         self.create_widgets()
-        
+
+        self._set_mode(self.match_mode.get())
+        self._apply_controller_colors()
+        self.scoreboard.set_colors(self.scoreboard_bg_color, self.scoreboard_text_color)
+        self.scoreboard.set_resolution(self.scoreboard_width.get(), self.scoreboard_height.get())
+        self.scoreboard.set_board_title(self.scoreboard_title)
+        self.scoreboard.set_team_names(self.team_home_name, self.team_away_name)
+        self._sync_auto_jingle_controls()
+        self._update_scoreboard_display(RSK_BLUE, "SPIEL BEREIT")
+
         self.wave_canvas.bind("<Configure>", self._on_resize)
         self.root.bind("<space>", lambda e: self.toggle_timer())
-        
-        self._update_scoreboard_display(RSK_BLUE, "SPIEL BEREIT") 
 
     # --- UI HELPER METHODEN (Unverändert) ---
     def _big_btn(self, parent, text, cmd, color):
@@ -304,6 +319,111 @@ class FussballTimer:
                 except tk.TclError:
                     pass
 
+    def _set_mode(self, mode_value):
+        self.match_mode.set(mode_value if mode_value in ("halle", "normal") else "normal")
+        self.total_halves = 1 if self.match_mode.get() == "halle" else 2
+        self.current_half = min(self.current_half, self.total_halves)
+        self.jingle_triggered = False
+        if hasattr(self, "next_half_btn"):
+            self.next_half_btn.config(state="disabled" if self.total_halves == 1 else "normal")
+        self._sync_auto_jingle_controls()
+        self._update_half_ready_label()
+
+    def _load_settings(self):
+        if not os.path.exists(self.settings_path):
+            return
+
+        try:
+            with open(self.settings_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            return
+
+        self.controller_title.set(data.get("controller_title", self.controller_title.get()))
+        self.controller_width.set(int(data.get("controller_width", self.controller_width.get())))
+        self.controller_height.set(int(data.get("controller_height", self.controller_height.get())))
+        self.controller_bg_color = data.get("controller_bg_color", self.controller_bg_color)
+        self.controller_header_color = data.get("controller_header_color", self.controller_header_color)
+        self.controller_card_bg = data.get("controller_card_bg", self.controller_card_bg)
+        self.controller_text_color = data.get("controller_text_color", self.controller_text_color)
+
+        self.scoreboard_bg_color = data.get("scoreboard_bg_color", self.scoreboard_bg_color)
+        self.scoreboard_text_color = data.get("scoreboard_text_color", self.scoreboard_text_color)
+        self.scoreboard_title = data.get("scoreboard_title", self.scoreboard_title)
+        self.scoreboard_width.set(int(data.get("scoreboard_width", self.scoreboard_width.get())))
+        self.scoreboard_height.set(int(data.get("scoreboard_height", self.scoreboard_height.get())))
+
+        self.team_home_name = data.get("team_home_name", self.team_home_name)
+        self.team_away_name = data.get("team_away_name", self.team_away_name)
+        self.scores = {self.team_home_name: 0, self.team_away_name: 0}
+
+        self.match_duration_minutes.set(int(data.get("match_duration", self.match_duration_minutes.get())))
+        self._set_mode(data.get("match_mode", self.match_mode.get()))
+
+    def _save_settings(self):
+        data = {
+            "controller_title": self.controller_title.get(),
+            "controller_width": self.controller_width.get(),
+            "controller_height": self.controller_height.get(),
+            "controller_bg_color": self.controller_bg_color,
+            "controller_header_color": self.controller_header_color,
+            "controller_card_bg": self.controller_card_bg,
+            "controller_text_color": self.controller_text_color,
+            "scoreboard_bg_color": self.scoreboard_bg_color,
+            "scoreboard_text_color": self.scoreboard_text_color,
+            "scoreboard_title": self.scoreboard_title,
+            "scoreboard_width": self.scoreboard_width.get(),
+            "scoreboard_height": self.scoreboard_height.get(),
+            "team_home_name": self.team_home_name,
+            "team_away_name": self.team_away_name,
+            "match_duration": self.match_duration_minutes.get(),
+            "match_mode": self.match_mode.get(),
+        }
+
+        try:
+            with open(self.settings_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+        except Exception as exc:
+            messagebox.showerror("Speichern fehlgeschlagen", f"Einstellungen konnten nicht gespeichert werden: {exc}")
+
+    def _get_half_prefix(self):
+        return "HALLE" if self.match_mode.get() == "halle" else f"{self.current_half}. HALBZEIT"
+
+    def _update_half_ready_label(self):
+        if not hasattr(self, "half_label"):
+            return
+
+        ready_text = f"{self._get_half_prefix()} BEREIT" if not self.running else self.half_label.cget("text")
+        self.half_label.config(text=ready_text)
+
+        if hasattr(self, "timer_label"):
+            self._update_scoreboard_display(self.timer_label['fg'], ready_text)
+
+    def _sync_auto_jingle_controls(self):
+        mode = self.match_mode.get()
+        auto_on = mode == "halle"
+        self.auto_jingle_enabled.set(auto_on)
+        if hasattr(self, "chk_auto_jingle"):
+            label_text = "Automatische Wiedergabe in der letzten Minute aktivieren"
+            if mode == "halle":
+                label_text += " (Hallenmodus)"
+            else:
+                label_text += " (im Normalmodus deaktiviert)"
+            self.chk_auto_jingle.configure(state="disabled", text=label_text)
+
+    def _next_half(self):
+        if self.match_mode.get() == "halle" or self.current_half >= self.total_halves:
+            return
+
+        self.stop_jingle()
+        self.stop_timer()
+        self.current_half += 1
+        self.seconds = 0
+        self.jingle_triggered = False
+        self.current_match_duration_seconds = self._get_desired_match_seconds()
+        self.timer_label.config(text="0:00", fg=RSK_BLUE)
+        self._update_half_ready_label()
+
     def _open_settings_menu(self):
         if hasattr(self, "settings_window") and self.settings_window.winfo_exists():
             self.settings_window.lift()
@@ -312,7 +432,7 @@ class FussballTimer:
         self.settings_window = tk.Toplevel(self.root)
         self.settings_window.title("Einstellungen")
         self.settings_window.configure(bg=self.controller_bg_color)
-        self.settings_window.geometry("560x660")
+        self.settings_window.geometry("620x760")
 
         self.home_name_var = tk.StringVar(value=self.team_home_name)
         self.away_name_var = tk.StringVar(value=self.team_away_name)
@@ -323,6 +443,7 @@ class FussballTimer:
         self.scoreboard_height_var = tk.IntVar(value=self.scoreboard_height.get())
         self.scoreboard_title_var = tk.StringVar(value=self.scoreboard_title)
         self.match_duration_var = tk.IntVar(value=self.match_duration_minutes.get())
+        self.match_mode_var = tk.StringVar(value=self.match_mode.get())
 
         self.controller_bg_color_var = tk.StringVar(value=self.controller_bg_color)
         self.controller_header_color_var = tk.StringVar(value=self.controller_header_color)
@@ -364,6 +485,27 @@ class FussballTimer:
         duration_row.pack(fill="x", pady=5)
         tk.Label(duration_row, text="Spielzeit (Minuten)", bg=self.controller_bg_color, fg=self.controller_text_color).pack(side="left", padx=5)
         tk.Entry(duration_row, width=6, textvariable=self.match_duration_var).pack(side="left")
+
+        mode_section = tk.LabelFrame(controller_section, text="Spielmodus", bg=self.controller_bg_color, fg=self.controller_text_color)
+        mode_section.pack(fill="x", pady=5, padx=5)
+        tk.Radiobutton(
+            mode_section,
+            text="Normal (2 Halbzeiten, manuell)",
+            variable=self.match_mode_var,
+            value="normal",
+            bg=self.controller_bg_color,
+            fg=self.controller_text_color,
+            anchor="w"
+        ).pack(fill="x", pady=2)
+        tk.Radiobutton(
+            mode_section,
+            text="Halle (1 Halbzeit, Jingle & Stop automatisch)",
+            variable=self.match_mode_var,
+            value="halle",
+            bg=self.controller_bg_color,
+            fg=self.controller_text_color,
+            anchor="w"
+        ).pack(fill="x", pady=2)
 
         scoreboard_section = tk.LabelFrame(content, text="Anzeigetafel", bg=self.controller_bg_color, fg=self.controller_text_color)
         scoreboard_section.pack(fill="x", pady=5)
@@ -456,6 +598,8 @@ class FussballTimer:
         self.scoreboard_bg_color = self.scoreboard_bg_color_var.get()
         self.scoreboard_text_color = self.scoreboard_text_color_var.get()
 
+        self._set_mode(self.match_mode_var.get())
+
         self._set_team_names(self.home_name_var.get().strip(), self.away_name_var.get().strip())
         self.scoreboard_title = self.scoreboard_title_var.get().strip() or self.scoreboard_title
         self.scoreboard.set_board_title(self.scoreboard_title)
@@ -497,6 +641,8 @@ class FussballTimer:
         self._apply_controller_colors()
         self.scoreboard.set_colors(self.scoreboard_bg_color, self.scoreboard_text_color)
 
+        self._save_settings()
+
         if hasattr(self, "settings_window") and self.settings_window.winfo_exists():
             self.settings_window.destroy()
 
@@ -533,6 +679,8 @@ class FussballTimer:
         tk.Label(sub_btn_frame, text="Min", font=("Arial", 10), bg=self.controller_card_bg, fg="#666").pack(side="left", padx=(0, 10))
 
         self._text_btn(sub_btn_frame, "Reset", self.reset_timer).pack(side="left", padx=5)
+        self.next_half_btn = self._text_btn(sub_btn_frame, "Nächste Halbzeit", self._next_half)
+        self.next_half_btn.pack(side="left", padx=5)
 
     def _create_card_score(self, parent):
         self.score_card = tk.Frame(parent, bg=self.controller_card_bg, bd=1, relief="flat")
@@ -635,7 +783,7 @@ class FussballTimer:
         if not self.running:
             if self.seconds == 0:
                 self.current_match_duration_seconds = self._get_desired_match_seconds()
-                self.half_label.config(text="SPIEL LÄUFT")
+                self.half_label.config(text=f"{self._get_half_prefix()} LÄUFT")
                 self.timer_label.config(fg=RSK_BLUE)
                 self.jingle_triggered = False
 
@@ -644,11 +792,12 @@ class FussballTimer:
                 self.scoreboard.show()
             self._tick()
             
-    def stop_timer(self): 
+    def stop_timer(self):
         if self.running:
             self.running = False
-            self.half_label.config(text="PAUSE")
-            self._update_scoreboard_display(self.timer_label['fg'], "SPIEL PAUSE")
+            pause_text = f"{self._get_half_prefix()} PAUSE"
+            self.half_label.config(text=pause_text)
+            self._update_scoreboard_display(self.timer_label['fg'], pause_text)
         
         if not self.scoreboard_enabled.get() and self.seconds < self.current_match_duration_seconds:
             self.scoreboard.hide()
@@ -658,10 +807,12 @@ class FussballTimer:
         self.stop_jingle()
         self.stop_timer()
         self.seconds = 0
-        self.jingle_triggered = False 
-        
+        self.jingle_triggered = False
+        self.current_half = 1
+        self.current_match_duration_seconds = self._get_desired_match_seconds()
+
         self.timer_label.config(text="0:00", fg=RSK_BLUE)
-        self.half_label.config(text="SPIEL BEREIT")
+        self._update_half_ready_label()
 
         self.scores = {self.team_home_name: 0, self.team_away_name: 0}
         self.lbl_score_home.config(text="0")
@@ -675,35 +826,39 @@ class FussballTimer:
             self.seconds += 1
             minutes = self.seconds // 60
             seconds_part = self.seconds % 60
-            
+
             target_time = self.current_match_duration_seconds
-            last_minute_threshold = target_time - 60
-
             color_to_use = RSK_BLUE
-            half_text = "SPIEL LÄUFT"
+            half_text = f"{self._get_half_prefix()} LÄUFT"
 
-            if self.seconds >= last_minute_threshold:
-                color_to_use = ACCENT_RED
+            if self.match_mode.get() == "halle":
+                last_minute_threshold = target_time - 60
+                if self.seconds >= last_minute_threshold:
+                    color_to_use = ACCENT_RED
 
-                if not self.jingle_triggered and self.jingle_paths and self.auto_jingle_enabled.get():
-                    path_to_play = random.choice(self.jingle_paths)
-                    self.start_jingle_load_and_play(path_to_play)
-                    self.jingle_triggered = True
+                    if not self.jingle_triggered and self.jingle_paths and self.auto_jingle_enabled.get():
+                        path_to_play = random.choice(self.jingle_paths)
+                        self.start_jingle_load_and_play(path_to_play)
+                        self.jingle_triggered = True
+
+                if self.seconds >= target_time:
+                    self.running = False
+                    self.stop_jingle()
+                    end_color = ACCENT_RED if color_to_use == ACCENT_RED else "#FF8C00"
+                    time_str = f"{minutes}:{seconds_part:02}"
+                    self.timer_label.config(text=time_str, fg=end_color)
+                    self.half_label.config(text="SPIEL ENDE")
+
+                    self._update_scoreboard_display(end_color, "SPIEL ENDE")
+                    return
+            else:
+                if self.seconds >= target_time:
+                    color_to_use = ACCENT_RED
 
             time_str = f"{minutes}:{seconds_part:02}"
             self.timer_label.config(text=time_str, fg=color_to_use)
 
             self._update_scoreboard_display(color_to_use, half_text)
-
-            if self.seconds >= target_time:
-                self.running = False
-                self.stop_jingle()
-                end_color = ACCENT_RED if color_to_use == ACCENT_RED else "#FF8C00"
-                self.timer_label.config(fg=end_color)
-                self.half_label.config(text="SPIEL ENDE")
-
-                self._update_scoreboard_display(end_color, "SPIEL ENDE")
-                return
 
             self._after_id = self.root.after(1000, self._tick)
 
