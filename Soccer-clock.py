@@ -1,4 +1,5 @@
 import tkinter as tk
+import tkinter.font as tkfont
 from tkinter import filedialog, messagebox, ttk, colorchooser
 import csv
 import pygame
@@ -104,7 +105,7 @@ class ScoreboardDisplay:
             textvariable=self.team_away_name,
             font=("Arial", 18, "bold"),
             bg=self.bg_color,
-            fg="#D0D0D0",
+            fg=self.text_color,
             wraplength=320,
             justify="center",
         )
@@ -166,7 +167,7 @@ class ScoreboardDisplay:
             widget.configure(bg=self.bg_color)
         self.lbl_title.configure(bg=self.bg_color, fg=self.text_color)
         self.lbl_home_team.configure(bg=self.bg_color, fg=self.text_color)
-        self.lbl_away_team.configure(bg=self.bg_color)
+        self.lbl_away_team.configure(bg=self.bg_color, fg=self.text_color)
         self.lbl_score_home.configure(bg=self.bg_color, fg=self.text_color)
         self.lbl_score_away.configure(bg=self.bg_color, fg=self.text_color)
         self.lbl_time.configure(bg=self.bg_color, fg=self.text_color)
@@ -176,6 +177,7 @@ class ScoreboardDisplay:
     def set_team_names(self, home, away):
         self.team_home_name.set(home)
         self.team_away_name.set(away)
+        self._sync_team_font_size()
 
     def set_resolution(self, width, height):
         self.window.geometry(f"{width}x{height}")
@@ -183,10 +185,36 @@ class ScoreboardDisplay:
         wrap_len = max(200, (width // 3) - 20)
         for lbl in (self.lbl_home_team, self.lbl_away_team):
             lbl.configure(wraplength=wrap_len)
+        self._sync_team_font_size()
 
     def set_board_title(self, title):
         self.board_title.set(title)
         self.window.title(f"Anzeigetafel - {title}")
+
+    def _sync_team_font_size(self):
+        wrap_len = int(self.lbl_home_team.cget("wraplength")) or 240
+        names = [self.team_home_name.get(), self.team_away_name.get()]
+        max_size = 26
+        min_size = 14
+
+        for size in range(max_size, min_size - 1, -1):
+            font = tkfont.Font(family="Arial", size=size, weight="bold")
+            fits_all = True
+            for name in names:
+                if not name:
+                    continue
+                longest_word = max((font.measure(word) for word in name.split()), default=0)
+                est_lines = (font.measure(name) // max(1, wrap_len)) + 1
+                if longest_word > wrap_len or est_lines > 3:
+                    fits_all = False
+                    break
+            if fits_all:
+                self.lbl_home_team.configure(font=("Arial", size, "bold"))
+                self.lbl_away_team.configure(font=("Arial", size, "bold"))
+                return
+
+        self.lbl_home_team.configure(font=("Arial", min_size, "bold"))
+        self.lbl_away_team.configure(font=("Arial", min_size, "bold"))
 
 
 # ====================================================================
