@@ -228,6 +228,26 @@ class FussballTimer:
         self.current_match_duration_seconds = self.match_duration_minutes.get() * 60
         self.scores = {self.team_home_name: 0, self.team_away_name: 0}
 
+        self.default_settings = {
+            "controller_title": self.controller_title.get(),
+            "controller_width": self.controller_width.get(),
+            "controller_height": self.controller_height.get(),
+            "controller_bg_color": self.controller_bg_color,
+            "controller_header_color": self.controller_header_color,
+            "controller_card_bg": self.controller_card_bg,
+            "controller_text_color": self.controller_text_color,
+            "scoreboard_bg_color": self.scoreboard_bg_color,
+            "scoreboard_text_color": self.scoreboard_text_color,
+            "scoreboard_title": self.scoreboard_title,
+            "scoreboard_width": self.scoreboard_width.get(),
+            "scoreboard_height": self.scoreboard_height.get(),
+            "team_home_name": self.team_home_name,
+            "team_away_name": self.team_away_name,
+            "match_duration": self.match_duration_minutes.get(),
+            "match_mode": self.match_mode.get(),
+            "auto_jingle_enabled": self.auto_jingle_enabled.get(),
+        }
+
         self._load_settings()
         self._update_mode_label()
 
@@ -431,6 +451,78 @@ class FussballTimer:
         except Exception as exc:
             messagebox.showerror("Speichern fehlgeschlagen", f"Einstellungen konnten nicht gespeichert werden: {exc}")
 
+    def _reset_settings_to_defaults(self):
+        if not messagebox.askyesno("Einstellungen zurücksetzen", "Alle Einstellungen auf Standardwerte setzen?"):
+            return
+
+        defaults = self.default_settings
+
+        self.controller_title.set(defaults["controller_title"])
+        self.controller_width.set(defaults["controller_width"])
+        self.controller_height.set(defaults["controller_height"])
+        self.controller_bg_color = defaults["controller_bg_color"]
+        self.controller_header_color = defaults["controller_header_color"]
+        self.controller_card_bg = defaults["controller_card_bg"]
+        self.controller_text_color = defaults["controller_text_color"]
+
+        self.scoreboard_bg_color = defaults["scoreboard_bg_color"]
+        self.scoreboard_text_color = defaults["scoreboard_text_color"]
+        self.scoreboard_title = defaults["scoreboard_title"]
+        self.scoreboard_width.set(defaults["scoreboard_width"])
+        self.scoreboard_height.set(defaults["scoreboard_height"])
+
+        self._set_team_names(defaults["team_home_name"], defaults["team_away_name"])
+        self.match_duration_minutes.set(defaults["match_duration"])
+        if not self.running:
+            self.current_match_duration_seconds = self.match_duration_minutes.get() * 60
+
+        self.match_mode.set(defaults["match_mode"])
+        self.auto_jingle_enabled.set(defaults["auto_jingle_enabled"])
+        self.auto_jingle_user_choice = self.auto_jingle_enabled.get()
+        self._set_mode(self.match_mode.get())
+
+        if hasattr(self, "home_name_var"):
+            self.home_name_var.set(self.team_home_name)
+        if hasattr(self, "away_name_var"):
+            self.away_name_var.set(self.team_away_name)
+        if hasattr(self, "controller_title_var"):
+            self.controller_title_var.set(self.controller_title.get())
+        if hasattr(self, "controller_width_var"):
+            self.controller_width_var.set(self.controller_width.get())
+        if hasattr(self, "controller_height_var"):
+            self.controller_height_var.set(self.controller_height.get())
+        if hasattr(self, "scoreboard_width_var"):
+            self.scoreboard_width_var.set(self.scoreboard_width.get())
+        if hasattr(self, "scoreboard_height_var"):
+            self.scoreboard_height_var.set(self.scoreboard_height.get())
+        if hasattr(self, "scoreboard_title_var"):
+            self.scoreboard_title_var.set(self.scoreboard_title)
+        if hasattr(self, "match_duration_var"):
+            self.match_duration_var.set(self.match_duration_minutes.get())
+        if hasattr(self, "match_mode_var"):
+            self.match_mode_var.set(self.match_mode.get())
+        if hasattr(self, "controller_bg_color_var"):
+            self.controller_bg_color_var.set(self.controller_bg_color)
+        if hasattr(self, "controller_header_color_var"):
+            self.controller_header_color_var.set(self.controller_header_color)
+        if hasattr(self, "controller_card_color_var"):
+            self.controller_card_color_var.set(self.controller_card_bg)
+        if hasattr(self, "scoreboard_bg_color_var"):
+            self.scoreboard_bg_color_var.set(self.scoreboard_bg_color)
+        if hasattr(self, "scoreboard_text_color_var"):
+            self.scoreboard_text_color_var.set(self.scoreboard_text_color)
+
+        self.root.geometry(f"{self.controller_width.get()}x{self.controller_height.get()}")
+        self.root.minsize(self.controller_width.get(), self.controller_height.get())
+        self.root.update_idletasks()
+
+        self.scoreboard.set_colors(self.scoreboard_bg_color, self.scoreboard_text_color)
+        self.scoreboard.set_resolution(self.scoreboard_width.get(), self.scoreboard_height.get())
+        self.scoreboard.set_board_title(self.scoreboard_title)
+        self._apply_controller_colors()
+        self._update_scoreboard_display(self.timer_label['fg'], self.half_label['text'])
+        self._save_settings()
+
     def _get_half_prefix(self):
         return "HALLE" if self.match_mode.get() in ("halle", "halle_turnier") else f"{self.current_half}. HALBZEIT"
 
@@ -605,6 +697,13 @@ class FussballTimer:
         btn_row.pack(fill="x", pady=10)
         tk.Button(btn_row, text="Speichern", command=self._apply_settings, bg=ACCENT_GREEN, fg=RSK_WHITE).pack(side="right", padx=5)
         tk.Button(btn_row, text="Schließen", command=self.settings_window.destroy, bg=ACCENT_RED, fg=RSK_WHITE).pack(side="right", padx=5)
+        tk.Button(
+            btn_row,
+            text="Zurücksetzen",
+            command=self._reset_settings_to_defaults,
+            bg=self.controller_card_bg,
+            fg=self.controller_text_color,
+        ).pack(side="left", padx=5)
         
     def _create_card_scoreboard_option_top(self):
         self.scoreboard_option_card = tk.Frame(self.root, bg=self.controller_card_bg, bd=1, relief="flat", padx=10, pady=6)
