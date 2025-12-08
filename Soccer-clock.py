@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk, colorchooser
+import csv
 import pygame
 import os
 import time
@@ -182,12 +183,15 @@ class FussballTimer:
         self.scoreboard_height = tk.IntVar(value=576)
         self.settings_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "settings.json")
         self.match_mode = tk.StringVar(value="normal")
+        self.tournament_matches = []
+        self.match_number_var = tk.StringVar(value="")
         self.total_halves = 2
         self.current_half = 1
 
         self.mode_info_var = tk.StringVar(value="")
         self.auto_jingle_enabled = tk.BooleanVar(value=True)
         self.auto_jingle_user_choice = None
+        self.csv_status_var = tk.StringVar(value="Kein CSV geladen")
 
         # Team- und Spielzeit-Defaults müssen vor dem Laden der Einstellungen existieren
         self.team_home_name = "Spielplan Links"
@@ -304,6 +308,7 @@ class FussballTimer:
         self._create_card_timer(self.main_container)
         self._create_card_score(self.main_container)
         self._create_card_audio(self.main_container)
+        self._update_tournament_controls()
 
     def _recolor_container(self, widget, color):
         for child in widget.winfo_children():
@@ -316,8 +321,10 @@ class FussballTimer:
                     pass
 
     def _set_mode(self, mode_value):
-        self.match_mode.set(mode_value if mode_value in ("halle", "normal") else "normal")
-        self.total_halves = 1 if self.match_mode.get() == "halle" else 2
+        valid_modes = ("halle", "halle_turnier", "normal")
+        self.match_mode.set(mode_value if mode_value in valid_modes else "normal")
+        is_hallenmodus = self.match_mode.get() in ("halle", "halle_turnier")
+        self.total_halves = 1 if is_hallenmodus else 2
         self.current_half = min(self.current_half, self.total_halves)
         self.jingle_triggered = False
         if hasattr(self, "next_half_btn"):
@@ -331,6 +338,7 @@ class FussballTimer:
         self._sync_auto_jingle_controls()
         self._update_mode_label()
         self._update_half_ready_label()
+        self._update_tournament_controls()
 
     def _load_settings(self):
         if not os.path.exists(self.settings_path):
@@ -395,11 +403,13 @@ class FussballTimer:
             messagebox.showerror("Speichern fehlgeschlagen", f"Einstellungen konnten nicht gespeichert werden: {exc}")
 
     def _get_half_prefix(self):
-        return "HALLE" if self.match_mode.get() == "halle" else f"{self.current_half}. HALBZEIT"
+        return "HALLE" if self.match_mode.get() in ("halle", "halle_turnier") else f"{self.current_half}. HALBZEIT"
 
     def _get_mode_display_text(self):
         if self.match_mode.get() == "halle":
             return "Modus: Halle (1 Halbzeit, Auto-Jingle)"
+        if self.match_mode.get() == "halle_turnier":
+            return "Modus: Hallen Turnier (1 Halbzeit, Auto-Jingle, CSV)"
         return "Modus: Normal (2 Halbzeiten)"
 
     def _update_mode_label(self):
@@ -421,17 +431,17 @@ class FussballTimer:
 
     def _sync_auto_jingle_controls(self):
         mode = self.match_mode.get()
-        auto_on = mode == "halle"
+        auto_on = mode in ("halle", "halle_turnier")
         if self.auto_jingle_user_choice is None:
             self.auto_jingle_enabled.set(auto_on)
         if hasattr(self, "chk_auto_jingle"):
             label_text = "Auto-Jingle letzte Minute"
-            if mode == "halle":
+            if mode in ("halle", "halle_turnier"):
                 label_text += " (empfohlen)"
             self.chk_auto_jingle.configure(state="normal", text=label_text)
 
     def _next_half(self):
-        if self.match_mode.get() == "halle" or self.current_half >= self.total_halves:
+        if self.match_mode.get() in ("halle", "halle_turnier") or self.current_half >= self.total_halves:
             return
 
         self.stop_jingle()
@@ -539,6 +549,15 @@ class FussballTimer:
             text="Halle (1 Halbzeit, Jingle & Stop automatisch)",
             variable=self.match_mode_var,
             value="halle",
+            bg=self.controller_bg_color,
+            fg=self.controller_text_color,
+            anchor="w"
+        ).pack(fill="x", pady=2)
+        tk.Radiobutton(
+            mode_section,
+            text="Hallen Turniermodus (CSV Import)",
+            variable=self.match_mode_var,
+            value="halle_turnier",
             bg=self.controller_bg_color,
             fg=self.controller_text_color,
             anchor="w"
@@ -682,6 +701,67 @@ class FussballTimer:
         if hasattr(self, "settings_window") and self.settings_window.winfo_exists():
             self.settings_window.destroy()
 
+    def _update_tournament_controls(self):
+        if not hasattr(self, "tournament_frame"):
+            return
+
+        is_turnier = self.match_mode.get() == "halle_turnier"
+
+        if is_turnier:
+            if not self.tournament_frame.winfo_manager():
+                self.tournament_frame.pack(**self.tournament_pack_options)
+            self.csv_load_btn.configure(state="normal")
+            combobox_state = "readonly" if self.tournament_matches else "disabled"
+            self.match_number_cb.configure(state=combobox_state)
+        else:
+            if self.tournament_frame.winfo_manager():
+                self.tournament_frame.pack_forget()
+            self.csv_load_btn.configure(state="disabled")
+            self.match_number_cb.configure(state="disabled")
+
+    def load_tournament_csv(self):
+        path = filedialog.askopenfilename(filetypes=[("CSV Dateien", "*.csv")])
+        if not path:
+            return
+
+        try:
+            with open(path, "r", encoding="utf-8-sig") as f:
+                reader = csv.DictReader(f)
+                matches = []
+                for row in reader:
+                    nr = (row.get("Nr") or "").strip()
+                    team1 = (row.get("Team1") or "").strip()
+                    team2 = (row.get("Team2") or "").strip()
+                    if not nr:
+                        continue
+                    matches.append({"Nr": nr, "Team1": team1, "Team2": team2})
+        except Exception as exc:
+            messagebox.showerror("CSV Import fehlgeschlagen", f"Die Datei konnte nicht geladen werden: {exc}")
+            return
+
+        if not matches:
+            messagebox.showwarning("Keine Daten", "In der gewählten CSV wurden keine Spiele gefunden.")
+            return
+
+        self.tournament_matches = matches
+        numbers = [m["Nr"] for m in matches]
+        self.match_number_cb.configure(values=numbers, state="readonly")
+        self.match_number_var.set(numbers[0])
+        self.csv_status_var.set(f"{len(matches)} Spiele geladen")
+        self._apply_selected_match()
+
+    def _apply_selected_match(self, event=None):
+        if not self.tournament_matches:
+            return
+
+        selected_nr = self.match_number_var.get().strip()
+        match = next((m for m in self.tournament_matches if m["Nr"] == selected_nr), None)
+        if not match:
+            messagebox.showwarning("Unbekannte Spielnummer", "Bitte wähle eine gültige Spielnummer aus der CSV.")
+            return
+
+        self._set_team_names(match.get("Team1", ""), match.get("Team2", ""))
+
 
     def _create_card_timer(self, parent):
         self.timer_card = tk.Frame(parent, bg=self.controller_card_bg, bd=1, relief="flat")
@@ -750,6 +830,29 @@ class FussballTimer:
         a_btns.pack()
         self._circle_btn(a_btns, "+", lambda: self.update_score("Away", 1), RSK_BLUE)
         self._circle_btn(a_btns, "-", lambda: self.update_score("Away", -1), "#999")
+
+        self.tournament_frame = tk.LabelFrame(
+            self.score_card,
+            text="Hallen Turnier CSV",
+            bg=self.controller_card_bg,
+            fg=RSK_BLUE
+        )
+        self.tournament_pack_options = {"fill": "x", "padx": 10, "pady": (10, 5)}
+
+        import_row = tk.Frame(self.tournament_frame, bg=self.controller_card_bg)
+        import_row.pack(fill="x", pady=(5, 3))
+        tk.Label(import_row, text="CSV laden", bg=self.controller_card_bg, fg=self.controller_text_color).pack(side="left", padx=5)
+        self.csv_load_btn = tk.Button(import_row, text="Datei wählen", command=self.load_tournament_csv, bg=ACCENT_GREEN, fg=RSK_WHITE)
+        self.csv_load_btn.pack(side="left")
+
+        select_row = tk.Frame(self.tournament_frame, bg=self.controller_card_bg)
+        select_row.pack(fill="x", pady=(0, 5))
+        tk.Label(select_row, text="Spielnummer (Nr)", bg=self.controller_card_bg, fg=self.controller_text_color).pack(side="left", padx=5)
+        self.match_number_cb = ttk.Combobox(select_row, textvariable=self.match_number_var, state="disabled", width=8)
+        self.match_number_cb.pack(side="left", padx=5)
+        self.match_number_cb.bind("<<ComboboxSelected>>", self._apply_selected_match)
+
+        tk.Label(self.tournament_frame, textvariable=self.csv_status_var, bg=self.controller_card_bg, fg="#666").pack(anchor="w", padx=5, pady=(0, 5))
 
     def _create_card_audio(self, parent):
         self.audio_card = tk.Frame(parent, bg=self.controller_card_bg, bd=1, relief="flat")
@@ -870,7 +973,7 @@ class FussballTimer:
             color_to_use = RSK_BLUE
             half_text = f"{self._get_half_prefix()} LÄUFT"
 
-            if self.match_mode.get() == "halle":
+            if self.match_mode.get() in ("halle", "halle_turnier"):
                 last_minute_threshold = target_time - 60
                 if self.seconds >= last_minute_threshold:
                     color_to_use = ACCENT_RED
