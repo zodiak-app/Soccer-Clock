@@ -224,7 +224,7 @@ class ScoreboardDisplay:
 class FussballTimer:
     def __init__(self, root):
         self.root = root
-        self.controller_title = tk.StringVar(value="FC RSK FREYBURG HALLE")
+        self.controller_title = tk.StringVar(value="FC RSK FREYBURG")
         self.controller_width = tk.IntVar(value=400)
         self.controller_height = tk.IntVar(value=800)
         self.controller_bg_color = BG_COLOR
@@ -399,11 +399,13 @@ class FussballTimer:
 
     def _set_mode(self, mode_value):
         valid_modes = ("halle", "halle_turnier", "normal")
+        previous_mode = self.match_mode.get()
         self.match_mode.set(mode_value if mode_value in valid_modes else "normal")
         is_hallenmodus = self.match_mode.get() in ("halle", "halle_turnier")
         self.total_halves = 1 if is_hallenmodus else 2
         self.current_half = min(self.current_half, self.total_halves)
         self.jingle_triggered = False
+        self._apply_mode_default_duration(previous_mode)
         if hasattr(self, "next_half_btn"):
             if self.total_halves == 1:
                 if self.next_half_btn.winfo_manager():
@@ -416,6 +418,18 @@ class FussballTimer:
         self._update_mode_label()
         self._update_half_ready_label()
         self._update_tournament_controls()
+
+    def _apply_mode_default_duration(self, previous_mode):
+        new_mode = self.match_mode.get()
+        default_new = 12 if new_mode in ("halle", "halle_turnier") else 45
+        default_prev = 12 if previous_mode in ("halle", "halle_turnier") else 45
+
+        if self.match_duration_minutes.get() == default_prev:
+            self.match_duration_minutes.set(default_new)
+            if not self.running:
+                self.current_match_duration_seconds = default_new * 60
+            if hasattr(self, "match_duration_var"):
+                self.match_duration_var.set(default_new)
 
     def _load_settings(self):
         if not os.path.exists(self.settings_path):
