@@ -684,6 +684,13 @@ class FussballTimer:
             anchor="w"
         ).pack(fill="x", pady=2)
 
+        csv_row = tk.Frame(scoreboard_section, bg=self.controller_bg_color)
+        csv_row.pack(fill="x", padx=5, pady=(2, 0))
+        tk.Label(csv_row, text="CSV Import (Turnier)", bg=self.controller_bg_color, fg=self.controller_text_color).pack(side="left")
+        self.csv_load_btn = tk.Button(csv_row, text="Datei wählen", command=self.load_tournament_csv, bg=ACCENT_GREEN, fg=RSK_WHITE)
+        self.csv_load_btn.pack(side="left", padx=6)
+        tk.Label(csv_row, textvariable=self.csv_status_var, bg=self.controller_bg_color, fg="#666").pack(side="left")
+
         section_colors = tk.LabelFrame(content, text="Farben (kompakt)", bg=self.controller_bg_color, fg=self.controller_text_color)
         section_colors.pack(fill="x", pady=5)
 
@@ -834,21 +841,19 @@ class FussballTimer:
             self.settings_window.destroy()
 
     def _update_tournament_controls(self):
-        if not hasattr(self, "tournament_frame"):
+        if not hasattr(self, "tournament_row"):
             return
 
         is_turnier = self.match_mode.get() == "halle_turnier"
 
         if is_turnier:
-            if not self.tournament_frame.winfo_manager():
-                self.tournament_frame.pack(**self.tournament_pack_options)
-            self.csv_load_btn.configure(state="normal")
+            if not self.tournament_row.winfo_manager():
+                self.tournament_row.pack(fill="x", padx=10, pady=(5, 0))
             combobox_state = "readonly" if self.tournament_matches else "disabled"
             self.match_number_cb.configure(state=combobox_state)
         else:
-            if self.tournament_frame.winfo_manager():
-                self.tournament_frame.pack_forget()
-            self.csv_load_btn.configure(state="disabled")
+            if self.tournament_row.winfo_manager():
+                self.tournament_row.pack_forget()
             self.match_number_cb.configure(state="disabled")
 
     def load_tournament_csv(self):
@@ -963,28 +968,13 @@ class FussballTimer:
         self._circle_btn(a_btns, "+", lambda: self.update_score("Away", 1), RSK_BLUE)
         self._circle_btn(a_btns, "-", lambda: self.update_score("Away", -1), "#999")
 
-        self.tournament_frame = tk.LabelFrame(
-            self.score_card,
-            text="Hallen Turnier CSV",
-            bg=self.controller_card_bg,
-            fg=RSK_BLUE
-        )
-        self.tournament_pack_options = {"fill": "x", "padx": 10, "pady": (10, 5)}
-
-        import_row = tk.Frame(self.tournament_frame, bg=self.controller_card_bg)
-        import_row.pack(fill="x", pady=(5, 3))
-        tk.Label(import_row, text="CSV laden", bg=self.controller_card_bg, fg=self.controller_text_color).pack(side="left", padx=5)
-        self.csv_load_btn = tk.Button(import_row, text="Datei wählen", command=self.load_tournament_csv, bg=ACCENT_GREEN, fg=RSK_WHITE)
-        self.csv_load_btn.pack(side="left")
-
-        select_row = tk.Frame(self.tournament_frame, bg=self.controller_card_bg)
-        select_row.pack(fill="x", pady=(0, 5))
-        tk.Label(select_row, text="Spielnummer (Nr)", bg=self.controller_card_bg, fg=self.controller_text_color).pack(side="left", padx=5)
-        self.match_number_cb = ttk.Combobox(select_row, textvariable=self.match_number_var, state="disabled", width=8)
-        self.match_number_cb.pack(side="left", padx=5)
+        self.tournament_row = tk.Frame(self.score_card, bg=self.controller_card_bg)
+        self.tournament_row.pack(fill="x", padx=10, pady=(5, 0))
+        tk.Label(self.tournament_row, text="Hallen Turnier Nr:", bg=self.controller_card_bg, fg=self.controller_text_color).pack(side="left")
+        self.match_number_cb = ttk.Combobox(self.tournament_row, textvariable=self.match_number_var, state="disabled", width=8)
+        self.match_number_cb.pack(side="left", padx=4)
         self.match_number_cb.bind("<<ComboboxSelected>>", self._apply_selected_match)
-
-        tk.Label(self.tournament_frame, textvariable=self.csv_status_var, bg=self.controller_card_bg, fg="#666").pack(anchor="w", padx=5, pady=(0, 5))
+        tk.Label(self.tournament_row, textvariable=self.csv_status_var, bg=self.controller_card_bg, fg="#666").pack(side="left", padx=6)
 
     def _create_card_audio(self, parent):
         self.audio_card = tk.Frame(parent, bg=self.controller_card_bg, bd=1, relief="flat")
