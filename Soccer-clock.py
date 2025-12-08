@@ -256,6 +256,11 @@ class FussballTimer:
         self.current_match_duration_seconds = self.match_duration_minutes.get() * 60
         self.scores = {self.team_home_name: 0, self.team_away_name: 0}
 
+        # --- Logik-Variablen ---
+        self.seconds = 0
+        self.running = False
+        self._after_id = None
+
         self.default_settings = {
             "controller_title": self.controller_title.get(),
             "controller_width": self.controller_width.get(),
@@ -283,11 +288,6 @@ class FussballTimer:
         self.root.geometry(f"{self.controller_width.get()}x{self.controller_height.get()}")
         self.root.minsize(self.controller_width.get(), self.controller_height.get())
         self.root.configure(bg=self.controller_bg_color)
-
-        # --- Logik-Variablen ---
-        self.seconds = 0
-        self.running = False
-        self._after_id = None
 
         self.jingle_paths = []
         self.jingle_triggered = False
