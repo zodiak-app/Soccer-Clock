@@ -1,5 +1,7 @@
 import tkinter as tk
+import tkinter.font as tkfont
 from tkinter import filedialog, messagebox, ttk, colorchooser
+import csv
 import pygame
 import os
 import time
@@ -31,13 +33,16 @@ class ScoreboardDisplay:
         text_color=RSK_WHITE,
         home_name="Spielplan Links",
         away_name="Spielplan Rechts",
-        board_title="FC RSK FREYBURG"
+        board_title="FC RSK FREYBURG",
+        on_close_callback=None,
     ):
         self.window = tk.Toplevel(master)
         self.window.title(f"Anzeigetafel - {board_title}")
         self.window.geometry("1024x576")
         self.window.configure(bg=bg_color)
-        self.window.protocol("WM_DELETE_WINDOW", self.hide)
+        self.window.protocol("WM_DELETE_WINDOW", self._on_close)
+
+        self.on_close_callback = on_close_callback
 
         self.bg_color = bg_color
         self.text_color = text_color
@@ -56,7 +61,7 @@ class ScoreboardDisplay:
         self.window.withdraw()
 
     def create_widgets(self):
-        self.main_frame = tk.Frame(self.window, bg=self.bg_color, padx=20, pady=20)
+        self.main_frame = tk.Frame(self.window, bg=self.bg_color, padx=14, pady=14)
         self.main_frame.pack(fill="both", expand=True)
 
         self.main_frame.grid_columnconfigure(0, weight=1)
@@ -68,36 +73,52 @@ class ScoreboardDisplay:
 
         # --- TITEL (GANZ OBEN) ---
         self.title_frame = tk.Frame(self.main_frame, bg=self.bg_color)
-        self.title_frame.grid(row=0, column=0, columnspan=3, pady=(0, 5), sticky="n")
-        self.lbl_title = tk.Label(self.title_frame, textvariable=self.board_title, font=("Helvetica", 28, "bold"), bg=self.bg_color, fg=self.text_color)
+        self.title_frame.grid(row=0, column=0, columnspan=3, pady=(0, 2), sticky="n")
+        self.lbl_title = tk.Label(self.title_frame, textvariable=self.board_title, font=("Helvetica", 24, "bold"), bg=self.bg_color, fg=self.text_color)
         self.lbl_title.pack()
 
         # --- SPIELSTAND - HOME (Spielplan Links) ---
         self.home_frame = tk.Frame(self.main_frame, bg=self.bg_color)
         self.home_frame.grid(row=1, column=0, sticky="nsew")
-        self.lbl_home_team = tk.Label(self.home_frame, textvariable=self.team_home_name, font=("Arial", 22, "bold"), bg=self.bg_color, fg=self.text_color)
-        self.lbl_home_team.pack(pady=5)
-        self.lbl_score_home = tk.Label(self.home_frame, textvariable=self.home_score_str, font=("Impact", 200), bg=self.bg_color, fg=self.text_color)
+        self.lbl_home_team = tk.Label(
+            self.home_frame,
+            textvariable=self.team_home_name,
+            font=("Arial", 18, "bold"),
+            bg=self.bg_color,
+            fg=self.text_color,
+            wraplength=320,
+            justify="center",
+        )
+        self.lbl_home_team.pack(pady=(4, 2), padx=6, fill="x")
+        self.lbl_score_home = tk.Label(self.home_frame, textvariable=self.home_score_str, font=("Impact", 150), bg=self.bg_color, fg=self.text_color)
         self.lbl_score_home.pack(fill="both", expand=True)
 
         # --- TRENNER (DOPPELPUNKT) ---
-        self.lbl_divider = tk.Label(self.main_frame, text=":", font=("Impact", 200), bg=self.bg_color, fg="#4477BB")
-        self.lbl_divider.grid(row=1, column=1, sticky="nsew", padx=10)
+        self.lbl_divider = tk.Label(self.main_frame, text=":", font=("Impact", 140), bg=self.bg_color, fg="#4477BB")
+        self.lbl_divider.grid(row=1, column=1, sticky="nsew", padx=4)
 
         # --- SPIELSTAND - AWAY (Spielplan Rechts) ---
         self.away_frame = tk.Frame(self.main_frame, bg=self.bg_color)
         self.away_frame.grid(row=1, column=2, sticky="nsew")
-        self.lbl_away_team = tk.Label(self.away_frame, textvariable=self.team_away_name, font=("Arial", 22, "bold"), bg=self.bg_color, fg="#D0D0D0")
-        self.lbl_away_team.pack(pady=5)
-        self.lbl_score_away = tk.Label(self.away_frame, textvariable=self.away_score_str, font=("Impact", 200), bg=self.bg_color, fg=self.text_color)
+        self.lbl_away_team = tk.Label(
+            self.away_frame,
+            textvariable=self.team_away_name,
+            font=("Arial", 18, "bold"),
+            bg=self.bg_color,
+            fg=self.text_color,
+            wraplength=320,
+            justify="center",
+        )
+        self.lbl_away_team.pack(pady=(4, 2), padx=6, fill="x")
+        self.lbl_score_away = tk.Label(self.away_frame, textvariable=self.away_score_str, font=("Impact", 150), bg=self.bg_color, fg=self.text_color)
         self.lbl_score_away.pack(fill="both", expand=True)
 
         # --- SPIELZEIT (GANZ UNTEN) ---
         self.time_frame = tk.Frame(self.main_frame, bg=self.bg_color)
-        self.time_frame.grid(row=2, column=0, columnspan=3, pady=(10, 0), sticky="s")
-        self.lbl_time_title = tk.Label(self.time_frame, text="SPIELZEIT", font=("Arial", 14, "bold"), bg=self.bg_color, fg=self.text_color)
+        self.time_frame.grid(row=2, column=0, columnspan=3, pady=(6, 0), sticky="s")
+        self.lbl_time_title = tk.Label(self.time_frame, text="SPIELZEIT", font=("Arial", 12, "bold"), bg=self.bg_color, fg=self.text_color)
         self.lbl_time_title.pack()
-        self.lbl_time = tk.Label(self.time_frame, textvariable=self.time_str, font=("Impact", 70), bg=self.bg_color, fg=self.text_color)
+        self.lbl_time = tk.Label(self.time_frame, textvariable=self.time_str, font=("Impact", 60), bg=self.bg_color, fg=self.text_color)
         self.lbl_time.pack()
 
     def update(self, time_str, half_text, home_score, away_score, time_color):
@@ -133,6 +154,12 @@ class ScoreboardDisplay:
     def hide(self):
         self.window.withdraw()
 
+    def _on_close(self):
+        if self.on_close_callback:
+            self.on_close_callback()
+        else:
+            self.hide()
+
     def set_colors(self, bg_color, text_color):
         self.bg_color = bg_color
         self.text_color = text_color
@@ -140,7 +167,7 @@ class ScoreboardDisplay:
             widget.configure(bg=self.bg_color)
         self.lbl_title.configure(bg=self.bg_color, fg=self.text_color)
         self.lbl_home_team.configure(bg=self.bg_color, fg=self.text_color)
-        self.lbl_away_team.configure(bg=self.bg_color)
+        self.lbl_away_team.configure(bg=self.bg_color, fg=self.text_color)
         self.lbl_score_home.configure(bg=self.bg_color, fg=self.text_color)
         self.lbl_score_away.configure(bg=self.bg_color, fg=self.text_color)
         self.lbl_time.configure(bg=self.bg_color, fg=self.text_color)
@@ -150,14 +177,44 @@ class ScoreboardDisplay:
     def set_team_names(self, home, away):
         self.team_home_name.set(home)
         self.team_away_name.set(away)
+        self._sync_team_font_size()
 
     def set_resolution(self, width, height):
         self.window.geometry(f"{width}x{height}")
         self.window.update_idletasks()
+        wrap_len = max(200, (width // 3) - 20)
+        for lbl in (self.lbl_home_team, self.lbl_away_team):
+            lbl.configure(wraplength=wrap_len)
+        self._sync_team_font_size()
 
     def set_board_title(self, title):
         self.board_title.set(title)
         self.window.title(f"Anzeigetafel - {title}")
+
+    def _sync_team_font_size(self):
+        wrap_len = int(self.lbl_home_team.cget("wraplength")) or 240
+        names = [self.team_home_name.get(), self.team_away_name.get()]
+        max_size = 26
+        min_size = 14
+
+        for size in range(max_size, min_size - 1, -1):
+            font = tkfont.Font(family="Arial", size=size, weight="bold")
+            fits_all = True
+            for name in names:
+                if not name:
+                    continue
+                longest_word = max((font.measure(word) for word in name.split()), default=0)
+                est_lines = (font.measure(name) // max(1, wrap_len)) + 1
+                if longest_word > wrap_len or est_lines > 3:
+                    fits_all = False
+                    break
+            if fits_all:
+                self.lbl_home_team.configure(font=("Arial", size, "bold"))
+                self.lbl_away_team.configure(font=("Arial", size, "bold"))
+                return
+
+        self.lbl_home_team.configure(font=("Arial", min_size, "bold"))
+        self.lbl_away_team.configure(font=("Arial", min_size, "bold"))
 
 
 # ====================================================================
@@ -167,7 +224,7 @@ class ScoreboardDisplay:
 class FussballTimer:
     def __init__(self, root):
         self.root = root
-        self.controller_title = tk.StringVar(value="FC RSK FREYBURG HALLE")
+        self.controller_title = tk.StringVar(value="FC RSK FREYBURG")
         self.controller_width = tk.IntVar(value=400)
         self.controller_height = tk.IntVar(value=800)
         self.controller_bg_color = BG_COLOR
@@ -182,12 +239,15 @@ class FussballTimer:
         self.scoreboard_height = tk.IntVar(value=576)
         self.settings_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "settings.json")
         self.match_mode = tk.StringVar(value="normal")
+        self.tournament_matches = []
+        self.match_number_var = tk.StringVar(value="")
         self.total_halves = 2
         self.current_half = 1
 
         self.mode_info_var = tk.StringVar(value="")
         self.auto_jingle_enabled = tk.BooleanVar(value=True)
         self.auto_jingle_user_choice = None
+        self.csv_status_var = tk.StringVar(value="Kein CSV geladen")
 
         # Team- und Spielzeit-Defaults müssen vor dem Laden der Einstellungen existieren
         self.team_home_name = "Spielplan Links"
@@ -196,6 +256,31 @@ class FussballTimer:
         self.current_match_duration_seconds = self.match_duration_minutes.get() * 60
         self.scores = {self.team_home_name: 0, self.team_away_name: 0}
 
+        # --- Logik-Variablen ---
+        self.seconds = 0
+        self.running = False
+        self._after_id = None
+
+        self.default_settings = {
+            "controller_title": self.controller_title.get(),
+            "controller_width": self.controller_width.get(),
+            "controller_height": self.controller_height.get(),
+            "controller_bg_color": self.controller_bg_color,
+            "controller_header_color": self.controller_header_color,
+            "controller_card_bg": self.controller_card_bg,
+            "controller_text_color": self.controller_text_color,
+            "scoreboard_bg_color": self.scoreboard_bg_color,
+            "scoreboard_text_color": self.scoreboard_text_color,
+            "scoreboard_title": self.scoreboard_title,
+            "scoreboard_width": self.scoreboard_width.get(),
+            "scoreboard_height": self.scoreboard_height.get(),
+            "team_home_name": self.team_home_name,
+            "team_away_name": self.team_away_name,
+            "match_duration": self.match_duration_minutes.get(),
+            "match_mode": self.match_mode.get(),
+            "auto_jingle_enabled": self.auto_jingle_enabled.get(),
+        }
+
         self._load_settings()
         self._update_mode_label()
 
@@ -203,11 +288,6 @@ class FussballTimer:
         self.root.geometry(f"{self.controller_width.get()}x{self.controller_height.get()}")
         self.root.minsize(self.controller_width.get(), self.controller_height.get())
         self.root.configure(bg=self.controller_bg_color)
-
-        # --- Logik-Variablen ---
-        self.seconds = 0
-        self.running = False
-        self._after_id = None
 
         self.jingle_paths = []
         self.jingle_triggered = False
@@ -218,7 +298,8 @@ class FussballTimer:
             text_color=self.scoreboard_text_color,
             home_name=self.team_home_name,
             away_name=self.team_away_name,
-            board_title=self.scoreboard_title
+            board_title=self.scoreboard_title,
+            on_close_callback=self._handle_scoreboard_closed,
         )
         self.scoreboard_enabled.trace_add("write", self._toggle_scoreboard)
         
@@ -304,6 +385,7 @@ class FussballTimer:
         self._create_card_timer(self.main_container)
         self._create_card_score(self.main_container)
         self._create_card_audio(self.main_container)
+        self._update_tournament_controls()
 
     def _recolor_container(self, widget, color):
         for child in widget.winfo_children():
@@ -316,10 +398,14 @@ class FussballTimer:
                     pass
 
     def _set_mode(self, mode_value):
-        self.match_mode.set(mode_value if mode_value in ("halle", "normal") else "normal")
-        self.total_halves = 1 if self.match_mode.get() == "halle" else 2
+        valid_modes = ("halle", "halle_turnier", "normal")
+        previous_mode = self.match_mode.get()
+        self.match_mode.set(mode_value if mode_value in valid_modes else "normal")
+        is_hallenmodus = self.match_mode.get() in ("halle", "halle_turnier")
+        self.total_halves = 1 if is_hallenmodus else 2
         self.current_half = min(self.current_half, self.total_halves)
         self.jingle_triggered = False
+        self._apply_mode_default_duration(previous_mode)
         if hasattr(self, "next_half_btn"):
             if self.total_halves == 1:
                 if self.next_half_btn.winfo_manager():
@@ -331,6 +417,19 @@ class FussballTimer:
         self._sync_auto_jingle_controls()
         self._update_mode_label()
         self._update_half_ready_label()
+        self._update_tournament_controls()
+
+    def _apply_mode_default_duration(self, previous_mode):
+        new_mode = self.match_mode.get()
+        default_new = 12 if new_mode in ("halle", "halle_turnier") else 45
+        default_prev = 12 if previous_mode in ("halle", "halle_turnier") else 45
+
+        if self.match_duration_minutes.get() == default_prev:
+            self.match_duration_minutes.set(default_new)
+            if not self.running:
+                self.current_match_duration_seconds = default_new * 60
+            if hasattr(self, "match_duration_var"):
+                self.match_duration_var.set(default_new)
 
     def _load_settings(self):
         if not os.path.exists(self.settings_path):
@@ -394,12 +493,86 @@ class FussballTimer:
         except Exception as exc:
             messagebox.showerror("Speichern fehlgeschlagen", f"Einstellungen konnten nicht gespeichert werden: {exc}")
 
+    def _reset_settings_to_defaults(self):
+        if not messagebox.askyesno("Einstellungen zurücksetzen", "Alle Einstellungen auf Standardwerte setzen?"):
+            return
+
+        defaults = self.default_settings
+
+        self.controller_title.set(defaults["controller_title"])
+        self.controller_width.set(defaults["controller_width"])
+        self.controller_height.set(defaults["controller_height"])
+        self.controller_bg_color = defaults["controller_bg_color"]
+        self.controller_header_color = defaults["controller_header_color"]
+        self.controller_card_bg = defaults["controller_card_bg"]
+        self.controller_text_color = defaults["controller_text_color"]
+
+        self.scoreboard_bg_color = defaults["scoreboard_bg_color"]
+        self.scoreboard_text_color = defaults["scoreboard_text_color"]
+        self.scoreboard_title = defaults["scoreboard_title"]
+        self.scoreboard_width.set(defaults["scoreboard_width"])
+        self.scoreboard_height.set(defaults["scoreboard_height"])
+
+        self._set_team_names(defaults["team_home_name"], defaults["team_away_name"])
+        self.match_duration_minutes.set(defaults["match_duration"])
+        if not self.running:
+            self.current_match_duration_seconds = self.match_duration_minutes.get() * 60
+
+        self.match_mode.set(defaults["match_mode"])
+        self.auto_jingle_enabled.set(defaults["auto_jingle_enabled"])
+        self.auto_jingle_user_choice = self.auto_jingle_enabled.get()
+        self._set_mode(self.match_mode.get())
+
+        if hasattr(self, "home_name_var"):
+            self.home_name_var.set(self.team_home_name)
+        if hasattr(self, "away_name_var"):
+            self.away_name_var.set(self.team_away_name)
+        if hasattr(self, "controller_title_var"):
+            self.controller_title_var.set(self.controller_title.get())
+        if hasattr(self, "controller_width_var"):
+            self.controller_width_var.set(self.controller_width.get())
+        if hasattr(self, "controller_height_var"):
+            self.controller_height_var.set(self.controller_height.get())
+        if hasattr(self, "scoreboard_width_var"):
+            self.scoreboard_width_var.set(self.scoreboard_width.get())
+        if hasattr(self, "scoreboard_height_var"):
+            self.scoreboard_height_var.set(self.scoreboard_height.get())
+        if hasattr(self, "scoreboard_title_var"):
+            self.scoreboard_title_var.set(self.scoreboard_title)
+        if hasattr(self, "match_duration_var"):
+            self.match_duration_var.set(self.match_duration_minutes.get())
+        if hasattr(self, "match_mode_var"):
+            self.match_mode_var.set(self.match_mode.get())
+        if hasattr(self, "controller_bg_color_var"):
+            self.controller_bg_color_var.set(self.controller_bg_color)
+        if hasattr(self, "controller_header_color_var"):
+            self.controller_header_color_var.set(self.controller_header_color)
+        if hasattr(self, "controller_card_color_var"):
+            self.controller_card_color_var.set(self.controller_card_bg)
+        if hasattr(self, "scoreboard_bg_color_var"):
+            self.scoreboard_bg_color_var.set(self.scoreboard_bg_color)
+        if hasattr(self, "scoreboard_text_color_var"):
+            self.scoreboard_text_color_var.set(self.scoreboard_text_color)
+
+        self.root.geometry(f"{self.controller_width.get()}x{self.controller_height.get()}")
+        self.root.minsize(self.controller_width.get(), self.controller_height.get())
+        self.root.update_idletasks()
+
+        self.scoreboard.set_colors(self.scoreboard_bg_color, self.scoreboard_text_color)
+        self.scoreboard.set_resolution(self.scoreboard_width.get(), self.scoreboard_height.get())
+        self.scoreboard.set_board_title(self.scoreboard_title)
+        self._apply_controller_colors()
+        self._update_scoreboard_display(self.timer_label['fg'], self.half_label['text'])
+        self._save_settings()
+
     def _get_half_prefix(self):
-        return "HALLE" if self.match_mode.get() == "halle" else f"{self.current_half}. HALBZEIT"
+        return "HALLE" if self.match_mode.get() in ("halle", "halle_turnier") else f"{self.current_half}. HALBZEIT"
 
     def _get_mode_display_text(self):
         if self.match_mode.get() == "halle":
             return "Modus: Halle (1 Halbzeit, Auto-Jingle)"
+        if self.match_mode.get() == "halle_turnier":
+            return "Modus: Hallen Turnier (1 Halbzeit, Auto-Jingle, CSV)"
         return "Modus: Normal (2 Halbzeiten)"
 
     def _update_mode_label(self):
@@ -421,17 +594,17 @@ class FussballTimer:
 
     def _sync_auto_jingle_controls(self):
         mode = self.match_mode.get()
-        auto_on = mode == "halle"
+        auto_on = mode in ("halle", "halle_turnier")
         if self.auto_jingle_user_choice is None:
             self.auto_jingle_enabled.set(auto_on)
         if hasattr(self, "chk_auto_jingle"):
             label_text = "Auto-Jingle letzte Minute"
-            if mode == "halle":
+            if mode in ("halle", "halle_turnier"):
                 label_text += " (empfohlen)"
             self.chk_auto_jingle.configure(state="normal", text=label_text)
 
     def _next_half(self):
-        if self.match_mode.get() == "halle" or self.current_half >= self.total_halves:
+        if self.match_mode.get() in ("halle", "halle_turnier") or self.current_half >= self.total_halves:
             return
 
         self.stop_jingle()
@@ -543,6 +716,22 @@ class FussballTimer:
             fg=self.controller_text_color,
             anchor="w"
         ).pack(fill="x", pady=2)
+        tk.Radiobutton(
+            mode_section,
+            text="Hallen Turniermodus (CSV Import)",
+            variable=self.match_mode_var,
+            value="halle_turnier",
+            bg=self.controller_bg_color,
+            fg=self.controller_text_color,
+            anchor="w"
+        ).pack(fill="x", pady=2)
+
+        csv_row = tk.Frame(scoreboard_section, bg=self.controller_bg_color)
+        csv_row.pack(fill="x", padx=5, pady=(2, 0))
+        tk.Label(csv_row, text="CSV Import (Turnier)", bg=self.controller_bg_color, fg=self.controller_text_color).pack(side="left")
+        self.csv_load_btn = tk.Button(csv_row, text="Datei wählen", command=self.load_tournament_csv, bg=ACCENT_GREEN, fg=RSK_WHITE)
+        self.csv_load_btn.pack(side="left", padx=6)
+        tk.Label(csv_row, textvariable=self.csv_status_var, bg=self.controller_bg_color, fg="#666").pack(side="left")
 
         section_colors = tk.LabelFrame(content, text="Farben (kompakt)", bg=self.controller_bg_color, fg=self.controller_text_color)
         section_colors.pack(fill="x", pady=5)
@@ -557,6 +746,13 @@ class FussballTimer:
         btn_row.pack(fill="x", pady=10)
         tk.Button(btn_row, text="Speichern", command=self._apply_settings, bg=ACCENT_GREEN, fg=RSK_WHITE).pack(side="right", padx=5)
         tk.Button(btn_row, text="Schließen", command=self.settings_window.destroy, bg=ACCENT_RED, fg=RSK_WHITE).pack(side="right", padx=5)
+        tk.Button(
+            btn_row,
+            text="Zurücksetzen",
+            command=self._reset_settings_to_defaults,
+            bg=self.controller_card_bg,
+            fg=self.controller_text_color,
+        ).pack(side="left", padx=5)
         
     def _create_card_scoreboard_option_top(self):
         self.scoreboard_option_card = tk.Frame(self.root, bg=self.controller_card_bg, bd=1, relief="flat", padx=10, pady=6)
@@ -595,6 +791,10 @@ class FussballTimer:
             self._update_scoreboard_display(self.timer_label['fg'], self.half_label['text'])
         else:
             self.scoreboard.hide()
+
+    def _handle_scoreboard_closed(self):
+        if self.scoreboard_enabled.get():
+            self.scoreboard_enabled.set(False)
 
     def _apply_controller_colors(self):
         self.root.configure(bg=self.controller_bg_color)
@@ -682,6 +882,65 @@ class FussballTimer:
         if hasattr(self, "settings_window") and self.settings_window.winfo_exists():
             self.settings_window.destroy()
 
+    def _update_tournament_controls(self):
+        if not hasattr(self, "tournament_row"):
+            return
+
+        is_turnier = self.match_mode.get() == "halle_turnier"
+
+        if is_turnier:
+            if not self.tournament_row.winfo_manager():
+                self.tournament_row.pack(fill="x", padx=10, pady=(5, 0))
+            combobox_state = "readonly" if self.tournament_matches else "disabled"
+            self.match_number_cb.configure(state=combobox_state)
+        else:
+            if self.tournament_row.winfo_manager():
+                self.tournament_row.pack_forget()
+            self.match_number_cb.configure(state="disabled")
+
+    def load_tournament_csv(self):
+        path = filedialog.askopenfilename(filetypes=[("CSV Dateien", "*.csv")])
+        if not path:
+            return
+
+        try:
+            with open(path, "r", encoding="utf-8-sig") as f:
+                reader = csv.DictReader(f)
+                matches = []
+                for row in reader:
+                    nr = (row.get("Nr") or "").strip()
+                    team1 = (row.get("Team1") or "").strip()
+                    team2 = (row.get("Team2") or "").strip()
+                    if not nr:
+                        continue
+                    matches.append({"Nr": nr, "Team1": team1, "Team2": team2})
+        except Exception as exc:
+            messagebox.showerror("CSV Import fehlgeschlagen", f"Die Datei konnte nicht geladen werden: {exc}")
+            return
+
+        if not matches:
+            messagebox.showwarning("Keine Daten", "In der gewählten CSV wurden keine Spiele gefunden.")
+            return
+
+        self.tournament_matches = matches
+        numbers = [m["Nr"] for m in matches]
+        self.match_number_cb.configure(values=numbers, state="readonly")
+        self.match_number_var.set(numbers[0])
+        self.csv_status_var.set(f"{len(matches)} Spiele geladen")
+        self._apply_selected_match()
+
+    def _apply_selected_match(self, event=None):
+        if not self.tournament_matches:
+            return
+
+        selected_nr = self.match_number_var.get().strip()
+        match = next((m for m in self.tournament_matches if m["Nr"] == selected_nr), None)
+        if not match:
+            messagebox.showwarning("Unbekannte Spielnummer", "Bitte wähle eine gültige Spielnummer aus der CSV.")
+            return
+
+        self._set_team_names(match.get("Team1", ""), match.get("Team2", ""))
+
 
     def _create_card_timer(self, parent):
         self.timer_card = tk.Frame(parent, bg=self.controller_card_bg, bd=1, relief="flat")
@@ -750,6 +1009,14 @@ class FussballTimer:
         a_btns.pack()
         self._circle_btn(a_btns, "+", lambda: self.update_score("Away", 1), RSK_BLUE)
         self._circle_btn(a_btns, "-", lambda: self.update_score("Away", -1), "#999")
+
+        self.tournament_row = tk.Frame(self.score_card, bg=self.controller_card_bg)
+        self.tournament_row.pack(fill="x", padx=10, pady=(5, 0))
+        tk.Label(self.tournament_row, text="Hallen Turnier Nr:", bg=self.controller_card_bg, fg=self.controller_text_color).pack(side="left")
+        self.match_number_cb = ttk.Combobox(self.tournament_row, textvariable=self.match_number_var, state="disabled", width=8)
+        self.match_number_cb.pack(side="left", padx=4)
+        self.match_number_cb.bind("<<ComboboxSelected>>", self._apply_selected_match)
+        tk.Label(self.tournament_row, textvariable=self.csv_status_var, bg=self.controller_card_bg, fg="#666").pack(side="left", padx=6)
 
     def _create_card_audio(self, parent):
         self.audio_card = tk.Frame(parent, bg=self.controller_card_bg, bd=1, relief="flat")
@@ -870,7 +1137,7 @@ class FussballTimer:
             color_to_use = RSK_BLUE
             half_text = f"{self._get_half_prefix()} LÄUFT"
 
-            if self.match_mode.get() == "halle":
+            if self.match_mode.get() in ("halle", "halle_turnier"):
                 last_minute_threshold = target_time - 60
                 if self.seconds >= last_minute_threshold:
                     color_to_use = ACCENT_RED
