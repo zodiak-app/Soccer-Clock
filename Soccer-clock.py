@@ -32,13 +32,16 @@ class ScoreboardDisplay:
         text_color=RSK_WHITE,
         home_name="Spielplan Links",
         away_name="Spielplan Rechts",
-        board_title="FC RSK FREYBURG"
+        board_title="FC RSK FREYBURG",
+        on_close_callback=None,
     ):
         self.window = tk.Toplevel(master)
         self.window.title(f"Anzeigetafel - {board_title}")
         self.window.geometry("1024x576")
         self.window.configure(bg=bg_color)
-        self.window.protocol("WM_DELETE_WINDOW", self.hide)
+        self.window.protocol("WM_DELETE_WINDOW", self._on_close)
+
+        self.on_close_callback = on_close_callback
 
         self.bg_color = bg_color
         self.text_color = text_color
@@ -57,7 +60,7 @@ class ScoreboardDisplay:
         self.window.withdraw()
 
     def create_widgets(self):
-        self.main_frame = tk.Frame(self.window, bg=self.bg_color, padx=20, pady=20)
+        self.main_frame = tk.Frame(self.window, bg=self.bg_color, padx=14, pady=14)
         self.main_frame.pack(fill="both", expand=True)
 
         self.main_frame.grid_columnconfigure(0, weight=1)
@@ -69,36 +72,52 @@ class ScoreboardDisplay:
 
         # --- TITEL (GANZ OBEN) ---
         self.title_frame = tk.Frame(self.main_frame, bg=self.bg_color)
-        self.title_frame.grid(row=0, column=0, columnspan=3, pady=(0, 5), sticky="n")
-        self.lbl_title = tk.Label(self.title_frame, textvariable=self.board_title, font=("Helvetica", 28, "bold"), bg=self.bg_color, fg=self.text_color)
+        self.title_frame.grid(row=0, column=0, columnspan=3, pady=(0, 2), sticky="n")
+        self.lbl_title = tk.Label(self.title_frame, textvariable=self.board_title, font=("Helvetica", 24, "bold"), bg=self.bg_color, fg=self.text_color)
         self.lbl_title.pack()
 
         # --- SPIELSTAND - HOME (Spielplan Links) ---
         self.home_frame = tk.Frame(self.main_frame, bg=self.bg_color)
         self.home_frame.grid(row=1, column=0, sticky="nsew")
-        self.lbl_home_team = tk.Label(self.home_frame, textvariable=self.team_home_name, font=("Arial", 22, "bold"), bg=self.bg_color, fg=self.text_color)
-        self.lbl_home_team.pack(pady=5)
-        self.lbl_score_home = tk.Label(self.home_frame, textvariable=self.home_score_str, font=("Impact", 200), bg=self.bg_color, fg=self.text_color)
+        self.lbl_home_team = tk.Label(
+            self.home_frame,
+            textvariable=self.team_home_name,
+            font=("Arial", 18, "bold"),
+            bg=self.bg_color,
+            fg=self.text_color,
+            wraplength=320,
+            justify="center",
+        )
+        self.lbl_home_team.pack(pady=(4, 2), padx=6, fill="x")
+        self.lbl_score_home = tk.Label(self.home_frame, textvariable=self.home_score_str, font=("Impact", 150), bg=self.bg_color, fg=self.text_color)
         self.lbl_score_home.pack(fill="both", expand=True)
 
         # --- TRENNER (DOPPELPUNKT) ---
-        self.lbl_divider = tk.Label(self.main_frame, text=":", font=("Impact", 200), bg=self.bg_color, fg="#4477BB")
-        self.lbl_divider.grid(row=1, column=1, sticky="nsew", padx=10)
+        self.lbl_divider = tk.Label(self.main_frame, text=":", font=("Impact", 140), bg=self.bg_color, fg="#4477BB")
+        self.lbl_divider.grid(row=1, column=1, sticky="nsew", padx=4)
 
         # --- SPIELSTAND - AWAY (Spielplan Rechts) ---
         self.away_frame = tk.Frame(self.main_frame, bg=self.bg_color)
         self.away_frame.grid(row=1, column=2, sticky="nsew")
-        self.lbl_away_team = tk.Label(self.away_frame, textvariable=self.team_away_name, font=("Arial", 22, "bold"), bg=self.bg_color, fg="#D0D0D0")
-        self.lbl_away_team.pack(pady=5)
-        self.lbl_score_away = tk.Label(self.away_frame, textvariable=self.away_score_str, font=("Impact", 200), bg=self.bg_color, fg=self.text_color)
+        self.lbl_away_team = tk.Label(
+            self.away_frame,
+            textvariable=self.team_away_name,
+            font=("Arial", 18, "bold"),
+            bg=self.bg_color,
+            fg="#D0D0D0",
+            wraplength=320,
+            justify="center",
+        )
+        self.lbl_away_team.pack(pady=(4, 2), padx=6, fill="x")
+        self.lbl_score_away = tk.Label(self.away_frame, textvariable=self.away_score_str, font=("Impact", 150), bg=self.bg_color, fg=self.text_color)
         self.lbl_score_away.pack(fill="both", expand=True)
 
         # --- SPIELZEIT (GANZ UNTEN) ---
         self.time_frame = tk.Frame(self.main_frame, bg=self.bg_color)
-        self.time_frame.grid(row=2, column=0, columnspan=3, pady=(10, 0), sticky="s")
-        self.lbl_time_title = tk.Label(self.time_frame, text="SPIELZEIT", font=("Arial", 14, "bold"), bg=self.bg_color, fg=self.text_color)
+        self.time_frame.grid(row=2, column=0, columnspan=3, pady=(6, 0), sticky="s")
+        self.lbl_time_title = tk.Label(self.time_frame, text="SPIELZEIT", font=("Arial", 12, "bold"), bg=self.bg_color, fg=self.text_color)
         self.lbl_time_title.pack()
-        self.lbl_time = tk.Label(self.time_frame, textvariable=self.time_str, font=("Impact", 70), bg=self.bg_color, fg=self.text_color)
+        self.lbl_time = tk.Label(self.time_frame, textvariable=self.time_str, font=("Impact", 60), bg=self.bg_color, fg=self.text_color)
         self.lbl_time.pack()
 
     def update(self, time_str, half_text, home_score, away_score, time_color):
@@ -134,6 +153,12 @@ class ScoreboardDisplay:
     def hide(self):
         self.window.withdraw()
 
+    def _on_close(self):
+        if self.on_close_callback:
+            self.on_close_callback()
+        else:
+            self.hide()
+
     def set_colors(self, bg_color, text_color):
         self.bg_color = bg_color
         self.text_color = text_color
@@ -155,6 +180,9 @@ class ScoreboardDisplay:
     def set_resolution(self, width, height):
         self.window.geometry(f"{width}x{height}")
         self.window.update_idletasks()
+        wrap_len = max(200, (width // 3) - 20)
+        for lbl in (self.lbl_home_team, self.lbl_away_team):
+            lbl.configure(wraplength=wrap_len)
 
     def set_board_title(self, title):
         self.board_title.set(title)
@@ -222,7 +250,8 @@ class FussballTimer:
             text_color=self.scoreboard_text_color,
             home_name=self.team_home_name,
             away_name=self.team_away_name,
-            board_title=self.scoreboard_title
+            board_title=self.scoreboard_title,
+            on_close_callback=self._handle_scoreboard_closed,
         )
         self.scoreboard_enabled.trace_add("write", self._toggle_scoreboard)
         
@@ -614,6 +643,10 @@ class FussballTimer:
             self._update_scoreboard_display(self.timer_label['fg'], self.half_label['text'])
         else:
             self.scoreboard.hide()
+
+    def _handle_scoreboard_closed(self):
+        if self.scoreboard_enabled.get():
+            self.scoreboard_enabled.set(False)
 
     def _apply_controller_colors(self):
         self.root.configure(bg=self.controller_bg_color)
