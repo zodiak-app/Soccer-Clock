@@ -824,6 +824,8 @@ class FussballTimer:
         self.home_title_label.config(text=self.team_home_name)
         self.away_title_label.config(text=self.team_away_name)
 
+        self._sync_controller_team_fonts()
+        self._equalize_score_panels()
         self.scoreboard.set_team_names(self.team_home_name, self.team_away_name)
         self._update_scoreboard_display(self.timer_label['fg'], self.half_label['text'])
 
@@ -984,10 +986,12 @@ class FussballTimer:
         self.score_grid.pack(fill="x")
         self.score_grid.grid_columnconfigure(0, weight=1, uniform="teams", minsize=170)
         self.score_grid.grid_columnconfigure(2, weight=1, uniform="teams", minsize=170)
+        self.score_grid.grid_rowconfigure(0, weight=1)
 
         # NEU: Text auf Spielplan Links geändert
         home_frame = tk.Frame(self.score_grid, bg=self.controller_card_bg)
         home_frame.grid(row=0, column=0, padx=10, sticky="nsew")
+        home_frame.grid_propagate(False)
         self.home_title_label = tk.Label(
             home_frame,
             text=self.scoreboard.team_home_name.get(),
@@ -1011,6 +1015,7 @@ class FussballTimer:
         # NEU: Text auf Spielplan Rechts geändert
         away_frame = tk.Frame(self.score_grid, bg=self.controller_card_bg)
         away_frame.grid(row=0, column=2, padx=10, sticky="nsew")
+        away_frame.grid_propagate(False)
         self.away_title_label = tk.Label(
             away_frame,
             text=self.scoreboard.team_away_name.get(),
@@ -1027,6 +1032,13 @@ class FussballTimer:
         a_btns.pack()
         self._circle_btn(a_btns, "+", lambda: self.update_score("Away", 1), RSK_BLUE)
         self._circle_btn(a_btns, "-", lambda: self.update_score("Away", -1), "#999")
+
+        self.home_frame = home_frame
+        self.away_frame = away_frame
+
+        self.score_grid.bind("<Configure>", lambda e: self._equalize_score_panels())
+        self._equalize_score_panels()
+        self._sync_controller_team_fonts()
 
         self.tournament_row = tk.Frame(self.score_card, bg=self.controller_card_bg)
         self.tournament_row.pack(fill="x", padx=10, pady=(5, 0))
@@ -1091,6 +1103,42 @@ class FussballTimer:
             style="RSK.Horizontal.TProgressbar"
         )
         self.progress.pack(fill="x", pady=(5, 0))
+
+
+    def _equalize_score_panels(self):
+        if not hasattr(self, "home_frame") or not hasattr(self, "away_frame"):
+            return
+
+        self.score_grid.update_idletasks()
+        desired_height = max(self.home_frame.winfo_reqheight(), self.away_frame.winfo_reqheight())
+        for frame in (self.home_frame, self.away_frame):
+            frame.configure(height=desired_height)
+
+
+    def _sync_controller_team_fonts(self):
+        wrap_len = int(self.home_title_label.cget("wraplength")) or 150
+        names = [self.team_home_name, self.team_away_name]
+        max_size = 14
+        min_size = 10
+
+        for size in range(max_size, min_size - 1, -1):
+            font = tkfont.Font(family="Arial", size=size, weight="bold")
+            fits_all = True
+            for name in names:
+                if not name:
+                    continue
+                longest_word = max((font.measure(word) for word in name.split()), default=0)
+                est_lines = (font.measure(name) // max(1, wrap_len)) + 1
+                if longest_word > wrap_len or est_lines > 2:
+                    fits_all = False
+                    break
+            if fits_all:
+                self.home_title_label.configure(font=("Arial", size, "bold"))
+                self.away_title_label.configure(font=("Arial", size, "bold"))
+                return
+
+        self.home_title_label.configure(font=("Arial", min_size, "bold"))
+        self.away_title_label.configure(font=("Arial", min_size, "bold"))
 
 
     def _get_desired_match_seconds(self):
