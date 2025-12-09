@@ -121,6 +121,12 @@ class ScoreboardDisplay:
         self.lbl_time = tk.Label(self.time_frame, textvariable=self.time_str, font=("Impact", 60), bg=self.bg_color, fg=self.text_color)
         self.lbl_time.pack()
 
+        for frame in (self.home_frame, self.away_frame):
+            frame.grid_propagate(False)
+
+        self.main_frame.bind("<Configure>", lambda e: self._equalize_score_frames())
+        self._equalize_score_frames()
+
     def update(self, time_str, half_text, home_score, away_score, time_color):
         """Aktualisiert alle Anzeigewerte ohne Statuszeile."""
         self.time_str.set(time_str)
@@ -178,6 +184,7 @@ class ScoreboardDisplay:
         self.team_home_name.set(home)
         self.team_away_name.set(away)
         self._sync_team_font_size()
+        self._equalize_score_frames()
 
     def set_resolution(self, width, height):
         self.window.geometry(f"{width}x{height}")
@@ -186,6 +193,7 @@ class ScoreboardDisplay:
         for lbl in (self.lbl_home_team, self.lbl_away_team):
             lbl.configure(wraplength=wrap_len)
         self._sync_team_font_size()
+        self._equalize_score_frames()
 
     def set_board_title(self, title):
         self.board_title.set(title)
@@ -205,7 +213,7 @@ class ScoreboardDisplay:
                     continue
                 longest_word = max((font.measure(word) for word in name.split()), default=0)
                 est_lines = (font.measure(name) // max(1, wrap_len)) + 1
-                if longest_word > wrap_len or est_lines > 3:
+                if longest_word > wrap_len or est_lines > 2:
                     fits_all = False
                     break
             if fits_all:
@@ -215,6 +223,15 @@ class ScoreboardDisplay:
 
         self.lbl_home_team.configure(font=("Arial", min_size, "bold"))
         self.lbl_away_team.configure(font=("Arial", min_size, "bold"))
+
+    def _equalize_score_frames(self):
+        if not hasattr(self, "home_frame") or not hasattr(self, "away_frame"):
+            return
+
+        self.main_frame.update_idletasks()
+        desired_height = max(self.home_frame.winfo_reqheight(), self.away_frame.winfo_reqheight())
+        for frame in (self.home_frame, self.away_frame):
+            frame.configure(height=desired_height)
 
 
 # ====================================================================
