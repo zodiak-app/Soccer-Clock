@@ -80,6 +80,8 @@ class ScoreboardDisplay:
         # --- SPIELSTAND - HOME (Spielplan Links) ---
         self.home_frame = tk.Frame(self.main_frame, bg=self.bg_color)
         self.home_frame.grid(row=1, column=0, sticky="nsew")
+        self.home_frame.grid_rowconfigure(1, weight=1)
+        self.home_frame.grid_columnconfigure(0, weight=1)
         self.lbl_home_team = tk.Label(
             self.home_frame,
             textvariable=self.team_home_name,
@@ -89,9 +91,9 @@ class ScoreboardDisplay:
             wraplength=320,
             justify="center",
         )
-        self.lbl_home_team.pack(pady=(4, 2), padx=6, fill="x")
+        self.lbl_home_team.grid(row=0, column=0, sticky="ew", pady=(4, 2), padx=6)
         self.lbl_score_home = tk.Label(self.home_frame, textvariable=self.home_score_str, font=("Impact", 150), bg=self.bg_color, fg=self.text_color)
-        self.lbl_score_home.pack(fill="both", expand=True)
+        self.lbl_score_home.grid(row=1, column=0, sticky="nsew")
 
         # --- TRENNER (DOPPELPUNKT) ---
         self.lbl_divider = tk.Label(self.main_frame, text=":", font=("Impact", 140), bg=self.bg_color, fg="#4477BB")
@@ -100,6 +102,8 @@ class ScoreboardDisplay:
         # --- SPIELSTAND - AWAY (Spielplan Rechts) ---
         self.away_frame = tk.Frame(self.main_frame, bg=self.bg_color)
         self.away_frame.grid(row=1, column=2, sticky="nsew")
+        self.away_frame.grid_rowconfigure(1, weight=1)
+        self.away_frame.grid_columnconfigure(0, weight=1)
         self.lbl_away_team = tk.Label(
             self.away_frame,
             textvariable=self.team_away_name,
@@ -109,9 +113,9 @@ class ScoreboardDisplay:
             wraplength=320,
             justify="center",
         )
-        self.lbl_away_team.pack(pady=(4, 2), padx=6, fill="x")
+        self.lbl_away_team.grid(row=0, column=0, sticky="ew", pady=(4, 2), padx=6)
         self.lbl_score_away = tk.Label(self.away_frame, textvariable=self.away_score_str, font=("Impact", 150), bg=self.bg_color, fg=self.text_color)
-        self.lbl_score_away.pack(fill="both", expand=True)
+        self.lbl_score_away.grid(row=1, column=0, sticky="nsew")
 
         # --- SPIELZEIT (GANZ UNTEN) ---
         self.time_frame = tk.Frame(self.main_frame, bg=self.bg_color)
@@ -1009,6 +1013,8 @@ class FussballTimer:
         home_frame = tk.Frame(self.score_grid, bg=self.controller_card_bg)
         home_frame.grid(row=0, column=0, padx=10, sticky="nsew")
         home_frame.grid_propagate(False)
+        home_frame.grid_rowconfigure(1, weight=1)
+        home_frame.grid_columnconfigure(0, weight=1)
         self.home_title_label = tk.Label(
             home_frame,
             text=self.scoreboard.team_home_name.get(),
@@ -1018,11 +1024,11 @@ class FussballTimer:
             wraplength=150,
             justify="center",
         )
-        self.home_title_label.pack()
+        self.home_title_label.grid(row=0, column=0, sticky="ew")
         self.lbl_score_home = tk.Label(home_frame, text="0", font=("Arial", 50, "bold"), bg=self.controller_card_bg, fg=self.controller_text_color)
-        self.lbl_score_home.pack()
+        self.lbl_score_home.grid(row=1, column=0, sticky="nsew")
         h_btns = tk.Frame(home_frame, bg=self.controller_card_bg)
-        h_btns.pack()
+        h_btns.grid(row=2, column=0, pady=(2, 0))
         self._circle_btn(h_btns, "+", lambda: self.update_score("Home", 1), RSK_BLUE)
         self._circle_btn(h_btns, "-", lambda: self.update_score("Home", -1), "#999")
 
@@ -1033,6 +1039,8 @@ class FussballTimer:
         away_frame = tk.Frame(self.score_grid, bg=self.controller_card_bg)
         away_frame.grid(row=0, column=2, padx=10, sticky="nsew")
         away_frame.grid_propagate(False)
+        away_frame.grid_rowconfigure(1, weight=1)
+        away_frame.grid_columnconfigure(0, weight=1)
         self.away_title_label = tk.Label(
             away_frame,
             text=self.scoreboard.team_away_name.get(),
@@ -1042,11 +1050,11 @@ class FussballTimer:
             wraplength=150,
             justify="center",
         )
-        self.away_title_label.pack()
+        self.away_title_label.grid(row=0, column=0, sticky="ew")
         self.lbl_score_away = tk.Label(away_frame, text="0", font=("Arial", 50, "bold"), bg=self.controller_card_bg, fg=self.controller_text_color)
-        self.lbl_score_away.pack()
+        self.lbl_score_away.grid(row=1, column=0, sticky="nsew")
         a_btns = tk.Frame(away_frame, bg=self.controller_card_bg)
-        a_btns.pack()
+        a_btns.grid(row=2, column=0, pady=(2, 0))
         self._circle_btn(a_btns, "+", lambda: self.update_score("Away", 1), RSK_BLUE)
         self._circle_btn(a_btns, "-", lambda: self.update_score("Away", -1), "#999")
 
