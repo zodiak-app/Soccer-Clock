@@ -981,11 +981,13 @@ class FussballTimer:
         self.score_card = tk.Frame(parent, bg=self.controller_card_bg, bd=1, relief="flat")
         self.score_card.pack(fill="x", pady=(0, 10), ipady=10)
         self.score_grid = tk.Frame(self.score_card, bg=self.controller_card_bg)
-        self.score_grid.pack()
+        self.score_grid.pack(fill="x")
+        self.score_grid.grid_columnconfigure(0, weight=1, uniform="teams", minsize=170)
+        self.score_grid.grid_columnconfigure(2, weight=1, uniform="teams", minsize=170)
 
         # NEU: Text auf Spielplan Links geändert
         home_frame = tk.Frame(self.score_grid, bg=self.controller_card_bg)
-        home_frame.grid(row=0, column=0, padx=10)
+        home_frame.grid(row=0, column=0, padx=10, sticky="nsew")
         self.home_title_label = tk.Label(
             home_frame,
             text=self.scoreboard.team_home_name.get(),
@@ -1008,7 +1010,7 @@ class FussballTimer:
 
         # NEU: Text auf Spielplan Rechts geändert
         away_frame = tk.Frame(self.score_grid, bg=self.controller_card_bg)
-        away_frame.grid(row=0, column=2, padx=10)
+        away_frame.grid(row=0, column=2, padx=10, sticky="nsew")
         self.away_title_label = tk.Label(
             away_frame,
             text=self.scoreboard.team_away_name.get(),
