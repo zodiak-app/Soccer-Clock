@@ -595,8 +595,8 @@ class FussballTimer:
     def _sync_auto_jingle_controls(self):
         mode = self.match_mode.get()
         auto_on = mode in ("halle", "halle_turnier")
-        if self.auto_jingle_user_choice is None:
-            self.auto_jingle_enabled.set(auto_on)
+        desired_state = auto_on if self.auto_jingle_user_choice is None else self.auto_jingle_user_choice
+        self.auto_jingle_enabled.set(desired_state and auto_on)
         if hasattr(self, "chk_auto_jingle"):
             label_text = "Auto-Jingle letzte Minute"
             if mode in ("halle", "halle_turnier"):
@@ -986,7 +986,15 @@ class FussballTimer:
         # NEU: Text auf Spielplan Links geändert
         home_frame = tk.Frame(self.score_grid, bg=self.controller_card_bg)
         home_frame.grid(row=0, column=0, padx=10)
-        self.home_title_label = tk.Label(home_frame, text=self.scoreboard.team_home_name.get(), font=("Arial", 14, "bold"), bg=self.controller_card_bg, fg=RSK_BLUE)
+        self.home_title_label = tk.Label(
+            home_frame,
+            text=self.scoreboard.team_home_name.get(),
+            font=("Arial", 14, "bold"),
+            bg=self.controller_card_bg,
+            fg=RSK_BLUE,
+            wraplength=150,
+            justify="center",
+        )
         self.home_title_label.pack()
         self.lbl_score_home = tk.Label(home_frame, text="0", font=("Arial", 50, "bold"), bg=self.controller_card_bg, fg=self.controller_text_color)
         self.lbl_score_home.pack()
@@ -1001,7 +1009,15 @@ class FussballTimer:
         # NEU: Text auf Spielplan Rechts geändert
         away_frame = tk.Frame(self.score_grid, bg=self.controller_card_bg)
         away_frame.grid(row=0, column=2, padx=10)
-        self.away_title_label = tk.Label(away_frame, text=self.scoreboard.team_away_name.get(), font=("Arial", 14, "bold"), bg=self.controller_card_bg, fg="#555")
+        self.away_title_label = tk.Label(
+            away_frame,
+            text=self.scoreboard.team_away_name.get(),
+            font=("Arial", 14, "bold"),
+            bg=self.controller_card_bg,
+            fg="#555",
+            wraplength=150,
+            justify="center",
+        )
         self.away_title_label.pack()
         self.lbl_score_away = tk.Label(away_frame, text="0", font=("Arial", 50, "bold"), bg=self.controller_card_bg, fg=self.controller_text_color)
         self.lbl_score_away.pack()
@@ -1024,9 +1040,11 @@ class FussballTimer:
 
         self.audio_top_frame = tk.Frame(self.audio_card, bg=self.controller_card_bg)
         self.audio_top_frame.pack(fill="x", padx=10, pady=5)
-        tk.Label(self.audio_top_frame, text="JINGLE / AUDIO", font=("Arial", 12, "bold"), bg=self.controller_card_bg, fg=RSK_BLUE).pack(anchor="w")
-        self.file_label = tk.Label(self.audio_top_frame, text="(Kein Jingle gewählt)", font=("Arial", 9, "italic"), bg=self.controller_card_bg, fg="#888", anchor="w")
-        self.file_label.pack(fill="x")
+        header_row = tk.Frame(self.audio_top_frame, bg=self.controller_card_bg)
+        header_row.pack(fill="x")
+        tk.Label(header_row, text="JINGLE / AUDIO", font=("Arial", 12, "bold"), bg=self.controller_card_bg, fg=RSK_BLUE).pack(side="left")
+        self.file_label = tk.Label(header_row, text="(Kein Jingle gewählt)", font=("Arial", 9, "italic"), bg=self.controller_card_bg, fg="#888", anchor="w")
+        self.file_label.pack(side="left", padx=8)
 
         self.auto_jingle_frame = tk.Frame(self.audio_card, bg=self.controller_card_bg)
         self.auto_jingle_frame.pack(fill="x", padx=10, pady=(0, 5))
