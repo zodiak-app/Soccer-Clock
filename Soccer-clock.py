@@ -4,12 +4,14 @@ from tkinter import filedialog, messagebox, ttk, colorchooser
 import csv
 import pygame
 import os
+import sys
 import time
 import wave
 import struct
 import threading
 import random
 import json
+from pathlib import Path
 
 # --- FARBPALETTE FC RSK FREYBURG ---
 RSK_BLUE = "#00529F"
@@ -18,6 +20,26 @@ BG_COLOR = "#F0F2F5"
 TEXT_COLOR = "#333333"
 ACCENT_GREEN = "#28a745"
 ACCENT_RED = "#dc3545"
+
+
+def get_settings_path():
+    """Return a user-writable path for the default settings file.
+
+    Falls back to platform-appropriate config locations to avoid writing
+    into the executable directory (problematic in onefile builds).
+    """
+
+    if os.name == "nt":
+        base_dir = os.getenv("LOCALAPPDATA") or os.getenv("APPDATA")
+        base_path = Path(base_dir) if base_dir else Path.home() / "AppData" / "Local"
+    elif sys.platform == "darwin":
+        base_path = Path.home() / "Library" / "Application Support"
+    else:
+        base_path = Path(os.getenv("XDG_CONFIG_HOME") or (Path.home() / ".config"))
+
+    config_dir = base_path / "SoccerClock"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    return config_dir / "settings.json"
 
 # ====================================================================
 # --- KLASSE: ANZEIGETAFEL-FENSTER (BLAU-WEISS, OHNE STATUS) ---
@@ -237,7 +259,8 @@ class FussballTimer:
         self.scoreboard_enabled = tk.BooleanVar(value=False)
         self.scoreboard_width = tk.IntVar(value=1024)
         self.scoreboard_height = tk.IntVar(value=576)
-        self.settings_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "settings.json")
+        self.settings_path = get_settings_path()
+        self.settings_path_var = tk.StringVar(value=str(self.settings_path))
         self.match_mode = tk.StringVar(value="normal")
         self.tournament_matches = []
         self.match_number_var = tk.StringVar(value="")
@@ -431,15 +454,19 @@ class FussballTimer:
             if hasattr(self, "match_duration_var"):
                 self.match_duration_var.set(default_new)
 
-    def _load_settings(self):
-        if not os.path.exists(self.settings_path):
+    def _load_settings(self, path=None):
+        target_path = Path(path or self.settings_path)
+        if not target_path.exists():
             return
 
         try:
-            with open(self.settings_path, "r", encoding="utf-8") as f:
+            with open(target_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
         except Exception:
             return
+
+        self.settings_path = target_path
+        self.settings_path_var.set(str(target_path))
 
         self.controller_title.set(data.get("controller_title", self.controller_title.get()))
         self.controller_width.set(int(data.get("controller_width", self.controller_width.get())))
@@ -488,6 +515,7 @@ class FussballTimer:
         }
 
         try:
+            Path(self.settings_path).expanduser().resolve().parent.mkdir(parents=True, exist_ok=True)
             with open(self.settings_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
         except Exception as exc:
@@ -537,6 +565,67 @@ class FussballTimer:
             self.scoreboard_width_var.set(self.scoreboard_width.get())
         if hasattr(self, "scoreboard_height_var"):
             self.scoreboard_height_var.set(self.scoreboard_height.get())
+
+    def _refresh_settings_form(self):
+        if not hasattr(self, "settings_window") or not self.settings_window.winfo_exists():
+            return
+
+        self.home_name_var.set(self.team_home_name)
+        self.away_name_var.set(self.team_away_name)
+        self.controller_title_var.set(self.controller_title.get())
+        self.controller_width_var.set(self.controller_width.get())
+        self.controller_height_var.set(self.controller_height.get())
+        self.scoreboard_width_var.set(self.scoreboard_width.get())
+        self.scoreboard_height_var.set(self.scoreboard_height.get())
+        self.scoreboard_title_var.set(self.scoreboard_title)
+        self.match_duration_var.set(self.match_duration_minutes.get())
+        self.match_mode_var.set(self.match_mode.get())
+
+        self.controller_bg_color_var.set(self.controller_bg_color)
+        self.controller_header_color_var.set(self.controller_header_color)
+        self.controller_card_color_var.set(self.controller_card_bg)
+        self.scoreboard_bg_color_var.set(self.scoreboard_bg_color)
+        self.scoreboard_text_color_var.set(self.scoreboard_text_color)
+        self.settings_path_var.set(str(self.settings_path))
+
+    def _prompt_load_settings_file(self):
+        path = filedialog.askopenfilename(
+            title="Einstellungen laden",
+            filetypes=[("JSON Dateien", "*.json"), ("Alle Dateien", "*.*")],
+        )
+        if not path:
+            return
+
+        try:
+            self._load_settings(path)
+            self._set_mode(self.match_mode.get())
+            self._set_team_names(self.team_home_name, self.team_away_name)
+            self._apply_controller_colors()
+            self.scoreboard.set_colors(self.scoreboard_bg_color, self.scoreboard_text_color)
+            self.scoreboard.set_resolution(self.scoreboard_width.get(), self.scoreboard_height.get())
+            self.scoreboard.set_board_title(self.scoreboard_title)
+            self._refresh_settings_form()
+            messagebox.showinfo("Einstellungen geladen", f"Die Datei wurde geladen:\n{path}")
+        except Exception as exc:
+            messagebox.showerror("Laden fehlgeschlagen", f"Die Einstellungen konnten nicht geladen werden: {exc}")
+
+    def _prompt_save_settings_as(self):
+        initial_dir = os.path.dirname(self.settings_path) if self.settings_path else os.getcwd()
+        initial_file = os.path.basename(self.settings_path) if self.settings_path else "settings.json"
+        path = filedialog.asksaveasfilename(
+            title="Einstellungen speichern unter",
+            defaultextension=".json",
+            filetypes=[("JSON Dateien", "*.json"), ("Alle Dateien", "*.*")],
+            initialdir=initial_dir,
+            initialfile=initial_file,
+        )
+        if not path:
+            return
+
+        self.settings_path = Path(path)
+        self.settings_path_var.set(str(self.settings_path))
+        self._save_settings()
+        messagebox.showinfo("Gespeichert", f"Einstellungen gespeichert unter:\n{path}")
         if hasattr(self, "scoreboard_title_var"):
             self.scoreboard_title_var.set(self.scoreboard_title)
         if hasattr(self, "match_duration_var"):
@@ -661,6 +750,19 @@ class FussballTimer:
 
         content = tk.Frame(self.settings_window, bg=self.controller_bg_color)
         content.pack(fill="both", expand=True, padx=10, pady=10)
+
+        settings_file_frame = tk.LabelFrame(content, text="Einstellungsdatei", bg=self.controller_bg_color, fg=self.controller_text_color)
+        settings_file_frame.pack(fill="x", pady=(0, 8))
+
+        file_path_row = tk.Frame(settings_file_frame, bg=self.controller_bg_color)
+        file_path_row.pack(fill="x", padx=5, pady=4)
+        tk.Label(file_path_row, text="Aktive Datei:", bg=self.controller_bg_color, fg=self.controller_text_color).pack(side="left")
+        tk.Label(file_path_row, textvariable=self.settings_path_var, bg=self.controller_bg_color, fg="#666", anchor="w", wraplength=360, justify="left").pack(side="left", padx=5, fill="x", expand=True)
+
+        file_btn_row = tk.Frame(settings_file_frame, bg=self.controller_bg_color)
+        file_btn_row.pack(fill="x", padx=5, pady=(0, 6))
+        tk.Button(file_btn_row, text="Laden...", command=self._prompt_load_settings_file, bg=self.controller_card_bg, fg=self.controller_text_color).pack(side="left", padx=4)
+        tk.Button(file_btn_row, text="Speichern unter...", command=self._prompt_save_settings_as, bg=ACCENT_GREEN, fg=RSK_WHITE).pack(side="left", padx=4)
 
         controller_section = tk.LabelFrame(content, text="Steuerpult", bg=self.controller_bg_color, fg=self.controller_text_color)
         controller_section.pack(fill="x", pady=5)
