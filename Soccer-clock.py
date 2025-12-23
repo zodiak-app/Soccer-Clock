@@ -996,6 +996,11 @@ class FussballTimer:
             bg=self.controller_card_bg,
             fg=self.controller_text_color,
         ).pack(side="left", padx=5)
+
+        # Ensure the canvas sizes and scrollregion are correct before first scroll
+        self.settings_window.update_idletasks()
+        _update_scrollregion()
+        canvas.yview_moveto(0)
         
     def _create_card_scoreboard_option_top(self):
         self.scoreboard_option_card = tk.Frame(self.root, bg=self.controller_card_bg, bd=1, relief="flat", padx=10, pady=6)
