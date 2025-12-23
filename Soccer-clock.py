@@ -11,6 +11,7 @@ import struct
 import threading
 import random
 import json
+import math
 from pathlib import Path
 
 # --- FARBPALETTE FC RSK FREYBURG ---
@@ -78,6 +79,8 @@ class ScoreboardDisplay:
         # NEU: Teamnamen aktualisiert
         self.team_home_name = tk.StringVar(value=home_name)
         self.team_away_name = tk.StringVar(value=away_name)
+        self.team_home_name_raw = home_name
+        self.team_away_name_raw = away_name
 
         self.create_widgets()
         self.window.withdraw()
@@ -110,6 +113,7 @@ class ScoreboardDisplay:
             fg=self.text_color,
             wraplength=320,
             justify="center",
+            height=3,
         )
         self.lbl_home_team.pack(pady=(4, 2), padx=6, fill="x")
         self.lbl_score_home = tk.Label(self.home_frame, textvariable=self.home_score_str, font=("Impact", 150), bg=self.bg_color, fg=self.text_color)
@@ -130,6 +134,7 @@ class ScoreboardDisplay:
             fg=self.text_color,
             wraplength=320,
             justify="center",
+            height=3,
         )
         self.lbl_away_team.pack(pady=(4, 2), padx=6, fill="x")
         self.lbl_score_away = tk.Label(self.away_frame, textvariable=self.away_score_str, font=("Impact", 150), bg=self.bg_color, fg=self.text_color)
@@ -142,6 +147,7 @@ class ScoreboardDisplay:
         self.lbl_time_title.pack()
         self.lbl_time = tk.Label(self.time_frame, textvariable=self.time_str, font=("Impact", 60), bg=self.bg_color, fg=self.text_color)
         self.lbl_time.pack()
+        self._update_wrapped_team_names()
 
     def update(self, time_str, half_text, home_score, away_score, time_color):
         """Aktualisiert alle Anzeigewerte ohne Statuszeile."""
@@ -197,8 +203,9 @@ class ScoreboardDisplay:
         self.lbl_divider.configure(bg=self.bg_color)
 
     def set_team_names(self, home, away):
-        self.team_home_name.set(home)
-        self.team_away_name.set(away)
+        self.team_home_name_raw = home
+        self.team_away_name_raw = away
+        self._update_wrapped_team_names()
         self._sync_team_font_size()
 
     def set_resolution(self, width, height):
@@ -215,7 +222,7 @@ class ScoreboardDisplay:
 
     def _sync_team_font_size(self):
         wrap_len = int(self.lbl_home_team.cget("wraplength")) or 240
-        names = [self.team_home_name.get(), self.team_away_name.get()]
+        names = [self.team_home_name_raw, self.team_away_name_raw]
         max_size = 26
         min_size = 14
 
@@ -233,10 +240,46 @@ class ScoreboardDisplay:
             if fits_all:
                 self.lbl_home_team.configure(font=("Arial", size, "bold"))
                 self.lbl_away_team.configure(font=("Arial", size, "bold"))
+                self._update_wrapped_team_names()
                 return
 
         self.lbl_home_team.configure(font=("Arial", min_size, "bold"))
         self.lbl_away_team.configure(font=("Arial", min_size, "bold"))
+        self._update_wrapped_team_names()
+
+    def _format_team_name_lines(self, name, wrap_len):
+        font = tkfont.Font(font=self.lbl_home_team["font"])
+        words = name.split()
+        if not words:
+            return [""]
+
+        lines = []
+        current = words[0]
+
+        for word in words[1:]:
+            trial = f"{current} {word}"
+            if font.measure(trial) <= wrap_len:
+                current = trial
+            else:
+                lines.append(current)
+                current = word
+
+        lines.append(current)
+        return lines[:3]
+
+    def _update_wrapped_team_names(self):
+        wrap_len = int(self.lbl_home_team.cget("wraplength")) or 240
+        home_lines = self._format_team_name_lines(self.team_home_name_raw, wrap_len)
+        away_lines = self._format_team_name_lines(self.team_away_name_raw, wrap_len)
+
+        line_count = max(len(home_lines), len(away_lines), self.lbl_home_team.cget("height"))
+        while len(home_lines) < line_count:
+            home_lines.append("")
+        while len(away_lines) < line_count:
+            away_lines.append("")
+
+        self.team_home_name.set("\n".join(home_lines))
+        self.team_away_name.set("\n".join(away_lines))
 
 
 # ====================================================================
@@ -270,6 +313,7 @@ class FussballTimer:
         self.mode_info_var = tk.StringVar(value="")
         self.auto_jingle_enabled = tk.BooleanVar(value=True)
         self.auto_jingle_user_choice = None
+        self.hall_buzzer_enabled = tk.BooleanVar(value=False)
         self.csv_status_var = tk.StringVar(value="Kein CSV geladen")
 
         # Team- und Spielzeit-Defaults müssen vor dem Laden der Einstellungen existieren
@@ -302,6 +346,7 @@ class FussballTimer:
             "match_duration": self.match_duration_minutes.get(),
             "match_mode": self.match_mode.get(),
             "auto_jingle_enabled": self.auto_jingle_enabled.get(),
+            "hall_buzzer_enabled": self.hall_buzzer_enabled.get(),
         }
 
         self._load_settings()
@@ -339,6 +384,7 @@ class FussballTimer:
         self.wave_duration = 0
         self.max_amp_scale = 1.0
         self.current_jingle_path = None
+        self._buzzer_sound = None
 
         self.create_widgets()
 
@@ -410,13 +456,18 @@ class FussballTimer:
         self._create_card_audio(self.main_container)
         self._update_tournament_controls()
 
-    def _recolor_container(self, widget, color):
+    def _recolor_container(self, widget, color, fg_color=None):
         for child in widget.winfo_children():
             if child.winfo_children():
-                self._recolor_container(child, color)
+                self._recolor_container(child, color, fg_color)
             if child.winfo_class() not in ("Button", "TButton"):
                 try:
                     child.configure(bg=color)
+                except tk.TclError:
+                    pass
+            if fg_color and child.winfo_class() in ("Label", "Checkbutton", "Radiobutton"):
+                try:
+                    child.configure(fg=fg_color)
                 except tk.TclError:
                     pass
 
@@ -491,6 +542,8 @@ class FussballTimer:
         if "auto_jingle_enabled" in data:
             self.auto_jingle_enabled.set(bool(data.get("auto_jingle_enabled", self.auto_jingle_enabled.get())))
             self.auto_jingle_user_choice = self.auto_jingle_enabled.get()
+        if "hall_buzzer_enabled" in data:
+            self.hall_buzzer_enabled.set(bool(data.get("hall_buzzer_enabled", self.hall_buzzer_enabled.get())))
         self._set_mode(data.get("match_mode", self.match_mode.get()))
 
     def _save_settings(self):
@@ -512,6 +565,7 @@ class FussballTimer:
             "match_duration": self.match_duration_minutes.get(),
             "match_mode": self.match_mode.get(),
             "auto_jingle_enabled": self.auto_jingle_enabled.get(),
+            "hall_buzzer_enabled": self.hall_buzzer_enabled.get(),
         }
 
         try:
@@ -549,6 +603,7 @@ class FussballTimer:
         self.match_mode.set(defaults["match_mode"])
         self.auto_jingle_enabled.set(defaults["auto_jingle_enabled"])
         self.auto_jingle_user_choice = self.auto_jingle_enabled.get()
+        self.hall_buzzer_enabled.set(defaults.get("hall_buzzer_enabled", False))
         self._set_mode(self.match_mode.get())
 
         if hasattr(self, "home_name_var"):
@@ -561,10 +616,24 @@ class FussballTimer:
             self.controller_width_var.set(self.controller_width.get())
         if hasattr(self, "controller_height_var"):
             self.controller_height_var.set(self.controller_height.get())
+        if hasattr(self, "controller_bg_color_var"):
+            self.controller_bg_color_var.set(self.controller_bg_color)
+        if hasattr(self, "controller_header_color_var"):
+            self.controller_header_color_var.set(self.controller_header_color)
+        if hasattr(self, "controller_card_color_var"):
+            self.controller_card_color_var.set(self.controller_card_bg)
+        if hasattr(self, "controller_text_color_var"):
+            self.controller_text_color_var.set(self.controller_text_color)
         if hasattr(self, "scoreboard_width_var"):
             self.scoreboard_width_var.set(self.scoreboard_width.get())
         if hasattr(self, "scoreboard_height_var"):
             self.scoreboard_height_var.set(self.scoreboard_height.get())
+        if hasattr(self, "scoreboard_bg_color_var"):
+            self.scoreboard_bg_color_var.set(self.scoreboard_bg_color)
+        if hasattr(self, "scoreboard_text_color_var"):
+            self.scoreboard_text_color_var.set(self.scoreboard_text_color)
+        if hasattr(self, "hall_buzzer_enabled_var"):
+            self.hall_buzzer_enabled_var.set(self.hall_buzzer_enabled.get())
 
     def _refresh_settings_form(self):
         if not hasattr(self, "settings_window") or not self.settings_window.winfo_exists():
@@ -584,8 +653,10 @@ class FussballTimer:
         self.controller_bg_color_var.set(self.controller_bg_color)
         self.controller_header_color_var.set(self.controller_header_color)
         self.controller_card_color_var.set(self.controller_card_bg)
+        self.controller_text_color_var.set(self.controller_text_color)
         self.scoreboard_bg_color_var.set(self.scoreboard_bg_color)
         self.scoreboard_text_color_var.set(self.scoreboard_text_color)
+        self.hall_buzzer_enabled_var.set(self.hall_buzzer_enabled.get())
         self.settings_path_var.set(str(self.settings_path))
 
     def _prompt_load_settings_file(self):
@@ -636,6 +707,12 @@ class FussballTimer:
             self.controller_bg_color_var.set(self.controller_bg_color)
         if hasattr(self, "controller_header_color_var"):
             self.controller_header_color_var.set(self.controller_header_color)
+        if hasattr(self, "controller_card_color_var"):
+            self.controller_card_color_var.set(self.controller_card_bg)
+        if hasattr(self, "controller_text_color_var"):
+            self.controller_text_color_var.set(self.controller_text_color)
+        if hasattr(self, "hall_buzzer_enabled_var"):
+            self.hall_buzzer_enabled_var.set(self.hall_buzzer_enabled.get())
         if hasattr(self, "controller_card_color_var"):
             self.controller_card_color_var.set(self.controller_card_bg)
         if hasattr(self, "scoreboard_bg_color_var"):
@@ -727,26 +804,30 @@ class FussballTimer:
         self.scoreboard_title_var = tk.StringVar(value=self.scoreboard_title)
         self.match_duration_var = tk.IntVar(value=self.match_duration_minutes.get())
         self.match_mode_var = tk.StringVar(value=self.match_mode.get())
+        self.hall_buzzer_enabled_var = tk.BooleanVar(value=self.hall_buzzer_enabled.get())
 
         self.controller_bg_color_var = tk.StringVar(value=self.controller_bg_color)
         self.controller_header_color_var = tk.StringVar(value=self.controller_header_color)
         self.controller_card_color_var = tk.StringVar(value=self.controller_card_bg)
+        self.controller_text_color_var = tk.StringVar(value=self.controller_text_color)
         self.scoreboard_bg_color_var = tk.StringVar(value=self.scoreboard_bg_color)
         self.scoreboard_text_color_var = tk.StringVar(value=self.scoreboard_text_color)
 
-        def color_row(parent, label_text, var):
-            row = tk.Frame(parent, bg=self.controller_bg_color)
-            row.pack(fill="x", pady=3)
-            tk.Label(row, text=label_text, bg=self.controller_bg_color, fg=self.controller_text_color, font=("Arial", 10, "bold"))\
-                .pack(side="left")
-            tk.Entry(row, textvariable=var, width=10).pack(side="left", padx=5)
+        def color_row(parent, label_text, var, row, col):
+            cell = tk.Frame(parent, bg=self.controller_bg_color)
+            cell.grid(row=row, column=col, sticky="ew", padx=4, pady=3)
+            tk.Label(cell, text=label_text, bg=self.controller_bg_color, fg=self.controller_text_color, font=("Arial", 10, "bold"))\
+                .pack(anchor="w")
+            entry_row = tk.Frame(cell, bg=self.controller_bg_color)
+            entry_row.pack(fill="x", pady=(2, 0))
+            tk.Entry(entry_row, textvariable=var, width=10).pack(side="left")
 
             def pick_color():
                 color = colorchooser.askcolor(color=var.get())[1]
                 if color:
                     var.set(color)
 
-            tk.Button(row, text="🎨", command=pick_color, bg=RSK_WHITE, relief="groove", width=3).pack(side="left")
+            tk.Button(entry_row, text="🎨", command=pick_color, bg=RSK_WHITE, relief="groove", width=3).pack(side="left", padx=4)
 
         content = tk.Frame(self.settings_window, bg=self.controller_bg_color)
         content.pack(fill="both", expand=True, padx=10, pady=10)
@@ -828,6 +909,17 @@ class FussballTimer:
             anchor="w"
         ).pack(fill="x", pady=2)
 
+        tk.Checkbutton(
+            mode_section,
+            text="Hupe am Spielende (Hallenmodus)",
+            variable=self.hall_buzzer_enabled_var,
+            bg=self.controller_bg_color,
+            fg=self.controller_text_color,
+            anchor="w",
+            relief="flat",
+            cursor="hand2",
+        ).pack(fill="x", pady=(4, 0))
+
         csv_row = tk.Frame(scoreboard_section, bg=self.controller_bg_color)
         csv_row.pack(fill="x", padx=5, pady=(2, 0))
         tk.Label(csv_row, text="CSV Import (Turnier)", bg=self.controller_bg_color, fg=self.controller_text_color).pack(side="left")
@@ -838,11 +930,23 @@ class FussballTimer:
         section_colors = tk.LabelFrame(content, text="Farben (kompakt)", bg=self.controller_bg_color, fg=self.controller_text_color)
         section_colors.pack(fill="x", pady=5)
 
-        color_row(section_colors, "Steuerpult Hintergrund", self.controller_bg_color_var)
-        color_row(section_colors, "Steuerpult Kopfzeile", self.controller_header_color_var)
-        color_row(section_colors, "Karten Hintergrund", self.controller_card_color_var)
-        color_row(section_colors, "Anzeigetafel Hintergrund", self.scoreboard_bg_color_var)
-        color_row(section_colors, "Anzeigetafel Text", self.scoreboard_text_color_var)
+        colors_grid = tk.Frame(section_colors, bg=self.controller_bg_color)
+        colors_grid.pack(fill="x", padx=2, pady=2)
+        colors_grid.columnconfigure((0, 1), weight=1)
+
+        color_rows = [
+            ("Steuerpult Hintergrund", self.controller_bg_color_var),
+            ("Steuerpult Kopfzeile", self.controller_header_color_var),
+            ("Karten Hintergrund", self.controller_card_color_var),
+            ("Steuerpult Text", self.controller_text_color_var),
+            ("Anzeigetafel Hintergrund", self.scoreboard_bg_color_var),
+            ("Anzeigetafel Text", self.scoreboard_text_color_var),
+        ]
+
+        for idx, (label_text, var) in enumerate(color_rows):
+            row = idx // 2
+            col = idx % 2
+            color_row(colors_grid, label_text, var, row, col)
 
         btn_row = tk.Frame(content, bg=self.controller_bg_color)
         btn_row.pack(fill="x", pady=10)
@@ -907,7 +1011,7 @@ class FussballTimer:
 
         for widget in [self.scoreboard_option_card, self.timer_card, self.score_card, self.audio_card]:
             widget.configure(bg=self.controller_card_bg)
-            self._recolor_container(widget, self.controller_card_bg)
+            self._recolor_container(widget, self.controller_card_bg, self.controller_text_color)
 
         if hasattr(self, "mode_label"):
             self.mode_label.configure(bg=self.controller_card_bg, fg=RSK_BLUE)
@@ -933,6 +1037,7 @@ class FussballTimer:
         self.controller_bg_color = self.controller_bg_color_var.get()
         self.controller_header_color = self.controller_header_color_var.get()
         self.controller_card_bg = self.controller_card_color_var.get()
+        self.controller_text_color = self.controller_text_color_var.get()
         self.scoreboard_bg_color = self.scoreboard_bg_color_var.get()
         self.scoreboard_text_color = self.scoreboard_text_color_var.get()
 
@@ -978,6 +1083,8 @@ class FussballTimer:
 
         self._apply_controller_colors()
         self.scoreboard.set_colors(self.scoreboard_bg_color, self.scoreboard_text_color)
+
+        self.hall_buzzer_enabled.set(bool(self.hall_buzzer_enabled_var.get()))
 
         self._save_settings()
 
@@ -1175,6 +1282,45 @@ class FussballTimer:
         self.progress.pack(fill="x", pady=(5, 0))
 
 
+    def _generate_buzzer_wave(self, path, duration=1.0, freq=600):
+        sample_rate = 22050
+        amplitude = 32767
+        total_samples = int(sample_rate * duration)
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        with wave.open(str(path), "w") as wav_file:
+            wav_file.setparams((1, 2, sample_rate, total_samples, "NONE", "not compressed"))
+            for i in range(total_samples):
+                angle = 2 * math.pi * freq * (i / sample_rate)
+                value = int(amplitude * 0.35 * math.sin(angle))
+                wav_file.writeframes(struct.pack("<h", value))
+
+    def _ensure_buzzer_sound(self):
+        if self._buzzer_sound:
+            return self._buzzer_sound
+
+        try:
+            buzzer_path = Path(self.settings_path).with_name("hall_buzzer.wav")
+            if not buzzer_path.exists():
+                self._generate_buzzer_wave(buzzer_path)
+            self._buzzer_sound = pygame.mixer.Sound(str(buzzer_path))
+        except Exception:
+            self._buzzer_sound = None
+
+        return self._buzzer_sound
+
+    def _play_hall_buzzer(self):
+        if not self.hall_buzzer_enabled.get():
+            return
+
+        sound = self._ensure_buzzer_sound()
+        if sound:
+            try:
+                sound.play()
+            except Exception:
+                pass
+
     def _get_desired_match_seconds(self):
         try:
             minutes = self.match_duration_minutes.get()
@@ -1258,6 +1404,7 @@ class FussballTimer:
                     self.half_label.config(text="SPIEL ENDE")
 
                     self._update_scoreboard_display(end_color, "SPIEL ENDE")
+                    self._play_hall_buzzer()
                     return
             else:
                 if self.seconds >= target_time:
