@@ -314,6 +314,7 @@ class FussballTimer:
         self.auto_jingle_enabled = tk.BooleanVar(value=True)
         self.auto_jingle_user_choice = None
         self.hall_buzzer_enabled = tk.BooleanVar(value=False)
+        self.hall_buzzer_file = ""
         self.csv_status_var = tk.StringVar(value="Kein CSV geladen")
 
         # Team- und Spielzeit-Defaults müssen vor dem Laden der Einstellungen existieren
@@ -347,6 +348,7 @@ class FussballTimer:
             "match_mode": self.match_mode.get(),
             "auto_jingle_enabled": self.auto_jingle_enabled.get(),
             "hall_buzzer_enabled": self.hall_buzzer_enabled.get(),
+            "hall_buzzer_file": self.hall_buzzer_file,
         }
 
         self._load_settings()
@@ -385,6 +387,7 @@ class FussballTimer:
         self.max_amp_scale = 1.0
         self.current_jingle_path = None
         self._buzzer_sound = None
+        self._buzzer_sound_source = None
 
         self.create_widgets()
 
@@ -544,6 +547,9 @@ class FussballTimer:
             self.auto_jingle_user_choice = self.auto_jingle_enabled.get()
         if "hall_buzzer_enabled" in data:
             self.hall_buzzer_enabled.set(bool(data.get("hall_buzzer_enabled", self.hall_buzzer_enabled.get())))
+        self.hall_buzzer_file = data.get("hall_buzzer_file", self.hall_buzzer_file)
+        self._buzzer_sound = None
+        self._buzzer_sound_source = None
         self._set_mode(data.get("match_mode", self.match_mode.get()))
 
     def _save_settings(self):
@@ -566,6 +572,7 @@ class FussballTimer:
             "match_mode": self.match_mode.get(),
             "auto_jingle_enabled": self.auto_jingle_enabled.get(),
             "hall_buzzer_enabled": self.hall_buzzer_enabled.get(),
+            "hall_buzzer_file": self.hall_buzzer_file,
         }
 
         try:
@@ -604,6 +611,9 @@ class FussballTimer:
         self.auto_jingle_enabled.set(defaults["auto_jingle_enabled"])
         self.auto_jingle_user_choice = self.auto_jingle_enabled.get()
         self.hall_buzzer_enabled.set(defaults.get("hall_buzzer_enabled", False))
+        self.hall_buzzer_file = defaults.get("hall_buzzer_file", "")
+        self._buzzer_sound = None
+        self._buzzer_sound_source = None
         self._set_mode(self.match_mode.get())
 
         if hasattr(self, "home_name_var"):
@@ -634,6 +644,8 @@ class FussballTimer:
             self.scoreboard_text_color_var.set(self.scoreboard_text_color)
         if hasattr(self, "hall_buzzer_enabled_var"):
             self.hall_buzzer_enabled_var.set(self.hall_buzzer_enabled.get())
+        if hasattr(self, "hall_buzzer_file_var"):
+            self.hall_buzzer_file_var.set(self.hall_buzzer_file)
 
     def _refresh_settings_form(self):
         if not hasattr(self, "settings_window") or not self.settings_window.winfo_exists():
@@ -657,6 +669,7 @@ class FussballTimer:
         self.scoreboard_bg_color_var.set(self.scoreboard_bg_color)
         self.scoreboard_text_color_var.set(self.scoreboard_text_color)
         self.hall_buzzer_enabled_var.set(self.hall_buzzer_enabled.get())
+        self.hall_buzzer_file_var.set(self.hall_buzzer_file)
         self.settings_path_var.set(str(self.settings_path))
 
     def _prompt_load_settings_file(self):
@@ -730,6 +743,18 @@ class FussballTimer:
         self._apply_controller_colors()
         self._update_scoreboard_display(self.timer_label['fg'], self.half_label['text'])
         self._save_settings()
+
+    def _choose_hall_buzzer_file(self):
+        path = filedialog.askopenfilename(
+            title="Hupe auswählen",
+            filetypes=[("Audio Dateien", "*.wav *.mp3"), ("WAV Dateien", "*.wav"), ("MP3 Dateien", "*.mp3"), ("Alle Dateien", "*.*")],
+        )
+        if not path:
+            return
+
+        self.hall_buzzer_file_var.set(path)
+        self._buzzer_sound = None
+        self._buzzer_sound_source = None
 
     def _get_half_prefix(self):
         return "HALLE" if self.match_mode.get() in ("halle", "halle_turnier") else f"{self.current_half}. HALBZEIT"
@@ -808,6 +833,7 @@ class FussballTimer:
         self.match_duration_var = tk.IntVar(value=self.match_duration_minutes.get())
         self.match_mode_var = tk.StringVar(value=self.match_mode.get())
         self.hall_buzzer_enabled_var = tk.BooleanVar(value=self.hall_buzzer_enabled.get())
+        self.hall_buzzer_file_var = tk.StringVar(value=self.hall_buzzer_file)
 
         self.controller_bg_color_var = tk.StringVar(value=self.controller_bg_color)
         self.controller_header_color_var = tk.StringVar(value=self.controller_header_color)
@@ -933,7 +959,7 @@ class FussballTimer:
         buzzer_row.pack(fill="x", pady=(6, 0))
         tk.Checkbutton(
             buzzer_row,
-            text="Nebelhorn am Spielende (Hallenmodus)",
+            text="Hupe am Spielende (Hallenmodus)",
             variable=self.hall_buzzer_enabled_var,
             bg=self.controller_bg_color,
             fg=self.controller_text_color,
@@ -949,6 +975,29 @@ class FussballTimer:
             fg=RSK_WHITE,
             padx=10,
         ).pack(side="right", padx=4)
+
+        buzzer_file_row = tk.Frame(mode_section, bg=self.controller_bg_color)
+        buzzer_file_row.pack(fill="x", pady=(4, 0))
+        tk.Label(
+            buzzer_file_row,
+            text="Hupe Datei (mp3/wav)",
+            bg=self.controller_bg_color,
+            fg=self.controller_text_color,
+        ).pack(side="left", padx=5)
+        file_entry = tk.Entry(
+            buzzer_file_row,
+            textvariable=self.hall_buzzer_file_var,
+            state="readonly",
+            readonlybackground="white",
+        )
+        file_entry.pack(side="left", fill="x", expand=True, padx=(5, 5))
+        tk.Button(
+            buzzer_file_row,
+            text="Datei wählen",
+            command=self._choose_hall_buzzer_file,
+            bg=self.controller_card_bg,
+            fg=self.controller_text_color,
+        ).pack(side="left", padx=(0, 4))
 
         csv_row = tk.Frame(scoreboard_section, bg=self.controller_bg_color)
         csv_row.pack(fill="x", padx=5, pady=(2, 0))
@@ -1131,6 +1180,9 @@ class FussballTimer:
         self.scoreboard.set_colors(self.scoreboard_bg_color, self.scoreboard_text_color)
 
         self.hall_buzzer_enabled.set(bool(self.hall_buzzer_enabled_var.get()))
+        self.hall_buzzer_file = self.hall_buzzer_file_var.get().strip()
+        self._buzzer_sound = None
+        self._buzzer_sound_source = None
 
         self._save_settings()
 
@@ -1361,19 +1413,35 @@ class FussballTimer:
                 value = int(amplitude * envelope * tone)
                 wav_file.writeframes(struct.pack("<h", value))
 
-    def _ensure_buzzer_sound(self):
-        if self._buzzer_sound:
-            return self._buzzer_sound
+    def _resolve_buzzer_source(self, preferred_path=None):
+        candidate = Path(preferred_path).expanduser() if preferred_path else None
+        if candidate and candidate.exists():
+            return candidate
 
+        stored = Path(self.hall_buzzer_file).expanduser() if self.hall_buzzer_file else None
+        if stored and stored.exists():
+            return stored
+
+        fallback = Path(self.settings_path).with_name("hall_buzzer.wav")
+        if not fallback.exists():
+            self._generate_buzzer_wave(fallback)
+        return fallback
+
+    def _ensure_buzzer_sound(self, preferred_path=None):
         if not pygame.mixer.get_init():
             return None
 
+        source = self._resolve_buzzer_source(preferred_path)
+
+        if self._buzzer_sound and self._buzzer_sound_source == source:
+            return self._buzzer_sound
+
         try:
-            buzzer_path = Path(self.settings_path).with_name("hall_buzzer.wav")
-            self._generate_buzzer_wave(buzzer_path)
-            self._buzzer_sound = pygame.mixer.Sound(str(buzzer_path))
+            self._buzzer_sound = pygame.mixer.Sound(str(source))
+            self._buzzer_sound_source = source
         except Exception:
             self._buzzer_sound = None
+            self._buzzer_sound_source = None
 
         return self._buzzer_sound
 
@@ -1389,7 +1457,8 @@ class FussballTimer:
                 pass
 
     def _play_buzzer_preview(self):
-        sound = self._ensure_buzzer_sound()
+        preferred_path = self.hall_buzzer_file_var.get() if hasattr(self, "hall_buzzer_file_var") else None
+        sound = self._ensure_buzzer_sound(preferred_path)
         if sound:
             try:
                 sound.play()
