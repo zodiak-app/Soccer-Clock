@@ -1319,7 +1319,7 @@ class FussballTimer:
         self.progress.pack(fill="x", pady=(5, 0))
 
 
-    def _generate_buzzer_wave(self, path, duration=2.5, base_freq=110):
+    def _generate_buzzer_wave(self, path, duration=4.0, base_freq=95):
         sample_rate = 22050
         amplitude = 32767
         total_samples = int(sample_rate * duration)
@@ -1330,19 +1330,33 @@ class FussballTimer:
             wav_file.setparams((1, 2, sample_rate, total_samples, "NONE", "not compressed"))
             for i in range(total_samples):
                 t = i / sample_rate
-                vibrato = base_freq * 0.08 * math.sin(2 * math.pi * 2 * t)
-                freq = base_freq + vibrato
+                vibrato = base_freq * 0.05 * math.sin(2 * math.pi * 2.2 * t)
+                beat = base_freq * 0.02 * math.sin(2 * math.pi * 0.8 * t)
+                freq = base_freq + vibrato + beat
+
                 angle = 2 * math.pi * freq * t
-                envelope_rise = min(1.0, t / 0.4)
-                envelope_fall = max(0.0, (duration - t) / 0.4)
-                envelope = min(envelope_rise, envelope_fall, 1.0)
+
+                attack = 0.25
+                decay = 0.35
+                sustain_level = 0.82
+                release = 0.55
+
+                if t < attack:
+                    envelope = t / attack
+                elif t < attack + decay:
+                    envelope = 1 - (1 - sustain_level) * ((t - attack) / decay)
+                elif t < duration - release:
+                    envelope = sustain_level
+                else:
+                    envelope = max(0.0, sustain_level * (1 - (t - (duration - release)) / release))
 
                 tone = (
-                    math.sin(angle)
-                    + 0.4 * math.sin(2 * angle)
-                    + 0.2 * math.sin(0.5 * angle)
-                ) / 1.6
-                value = int(amplitude * 0.42 * envelope * tone)
+                    0.65 * math.sin(angle)
+                    + 0.25 * math.sin(0.52 * angle)
+                    + 0.18 * math.sin(1.95 * angle)
+                ) / 1.08
+
+                value = int(amplitude * 0.55 * envelope * tone)
                 wav_file.writeframes(struct.pack("<h", value))
 
     def _ensure_buzzer_sound(self):
