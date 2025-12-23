@@ -849,6 +849,7 @@ class FussballTimer:
             canvas.itemconfig(content_window, width=canvas.winfo_width())
 
         content.bind("<Configure>", _update_scrollregion)
+        canvas.bind("<Configure>", _update_scrollregion)
         canvas.bind_all("<MouseWheel>", lambda e: canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"))
 
         settings_file_frame = tk.LabelFrame(content, text="Einstellungsdatei", bg=self.controller_bg_color, fg=self.controller_text_color)
@@ -998,9 +999,12 @@ class FussballTimer:
         ).pack(side="left", padx=5)
 
         # Ensure the canvas sizes and scrollregion are correct before first scroll
+        content.update_idletasks()
+        canvas.update_idletasks()
         self.settings_window.update_idletasks()
         _update_scrollregion()
         canvas.yview_moveto(0)
+        self.settings_window.after_idle(_update_scrollregion)
         
     def _create_card_scoreboard_option_top(self):
         self.scoreboard_option_card = tk.Frame(self.root, bg=self.controller_card_bg, bd=1, relief="flat", padx=10, pady=6)
@@ -1324,7 +1328,7 @@ class FussballTimer:
         self.progress.pack(fill="x", pady=(5, 0))
 
 
-    def _generate_buzzer_wave(self, path, duration=4.0, base_freq=95):
+    def _generate_buzzer_wave(self, path, duration=3.5, base_freq=160):
         sample_rate = 22050
         amplitude = 32767
         total_samples = int(sample_rate * duration)
@@ -1335,38 +1339,34 @@ class FussballTimer:
             wav_file.setparams((1, 2, sample_rate, total_samples, "NONE", "not compressed"))
             for i in range(total_samples):
                 t = i / sample_rate
-                vibrato = base_freq * 0.05 * math.sin(2 * math.pi * 2.2 * t)
-                beat = base_freq * 0.02 * math.sin(2 * math.pi * 0.8 * t)
-                freq = base_freq + vibrato + beat
+                wobble = base_freq * 0.012 * math.sin(2 * math.pi * 1.4 * t)
+                freq = base_freq + wobble
 
                 angle = 2 * math.pi * freq * t
 
-                attack = 0.25
-                decay = 0.35
-                sustain_level = 0.82
-                release = 0.55
+                attack = 0.08
+                sustain = 2.4
+                release = 0.6
 
                 if t < attack:
                     envelope = t / attack
-                elif t < attack + decay:
-                    envelope = 1 - (1 - sustain_level) * ((t - attack) / decay)
+                elif t < sustain:
+                    envelope = 1.0
                 elif t < duration - release:
-                    envelope = sustain_level
+                    envelope = 0.85
                 else:
-                    envelope = max(0.0, sustain_level * (1 - (t - (duration - release)) / release))
+                    envelope = max(0.0, 0.85 * (1 - (t - (duration - release)) / release))
 
-                tone = (
-                    0.65 * math.sin(angle)
-                    + 0.25 * math.sin(0.52 * angle)
-                    + 0.18 * math.sin(1.95 * angle)
-                ) / 1.08
-
-                value = int(amplitude * 0.55 * envelope * tone)
+                tone = (0.82 * math.sin(angle) + 0.35 * math.sin(angle * 2)) * 0.7
+                value = int(amplitude * envelope * tone)
                 wav_file.writeframes(struct.pack("<h", value))
 
     def _ensure_buzzer_sound(self):
         if self._buzzer_sound:
             return self._buzzer_sound
+
+        if not pygame.mixer.get_init():
+            return None
 
         try:
             buzzer_path = Path(self.settings_path).with_name("hall_buzzer.wav")
