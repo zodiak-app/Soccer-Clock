@@ -792,7 +792,10 @@ class FussballTimer:
         self.settings_window = tk.Toplevel(self.root)
         self.settings_window.title("Einstellungen")
         self.settings_window.configure(bg=self.controller_bg_color)
-        self.settings_window.geometry("620x760")
+
+        target_width = min(max(720, self.scoreboard_width.get()), 1100)
+        target_height = min(max(620, self.scoreboard_height.get()), 1000)
+        self.settings_window.geometry(f"{target_width}x{target_height}")
 
         self.home_name_var = tk.StringVar(value=self.team_home_name)
         self.away_name_var = tk.StringVar(value=self.team_away_name)
@@ -829,8 +832,24 @@ class FussballTimer:
 
             tk.Button(entry_row, text="🎨", command=pick_color, bg=RSK_WHITE, relief="groove", width=3).pack(side="left", padx=4)
 
-        content = tk.Frame(self.settings_window, bg=self.controller_bg_color)
-        content.pack(fill="both", expand=True, padx=10, pady=10)
+        scroll_host = tk.Frame(self.settings_window, bg=self.controller_bg_color)
+        scroll_host.pack(fill="both", expand=True)
+
+        canvas = tk.Canvas(scroll_host, bg=self.controller_bg_color, highlightthickness=0)
+        v_scroll = tk.Scrollbar(scroll_host, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=v_scroll.set)
+        v_scroll.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
+
+        content = tk.Frame(canvas, bg=self.controller_bg_color)
+        content_window = canvas.create_window((0, 0), window=content, anchor="nw")
+
+        def _update_scrollregion(event=None):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+            canvas.itemconfig(content_window, width=canvas.winfo_width())
+
+        content.bind("<Configure>", _update_scrollregion)
+        canvas.bind_all("<MouseWheel>", lambda e: canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"))
 
         settings_file_frame = tk.LabelFrame(content, text="Einstellungsdatei", bg=self.controller_bg_color, fg=self.controller_text_color)
         settings_file_frame.pack(fill="x", pady=(0, 8))
@@ -909,16 +928,26 @@ class FussballTimer:
             anchor="w"
         ).pack(fill="x", pady=2)
 
+        buzzer_row = tk.Frame(mode_section, bg=self.controller_bg_color)
+        buzzer_row.pack(fill="x", pady=(6, 0))
         tk.Checkbutton(
-            mode_section,
-            text="Hupe am Spielende (Hallenmodus)",
+            buzzer_row,
+            text="Nebelhorn am Spielende (Hallenmodus)",
             variable=self.hall_buzzer_enabled_var,
             bg=self.controller_bg_color,
             fg=self.controller_text_color,
             anchor="w",
             relief="flat",
             cursor="hand2",
-        ).pack(fill="x", pady=(4, 0))
+        ).pack(side="left", fill="x", expand=True)
+        tk.Button(
+            buzzer_row,
+            text="Test",
+            command=self._play_buzzer_preview,
+            bg=ACCENT_GREEN,
+            fg=RSK_WHITE,
+            padx=10,
+        ).pack(side="right", padx=4)
 
         csv_row = tk.Frame(scoreboard_section, bg=self.controller_bg_color)
         csv_row.pack(fill="x", padx=5, pady=(2, 0))
@@ -928,25 +957,33 @@ class FussballTimer:
         tk.Label(csv_row, textvariable=self.csv_status_var, bg=self.controller_bg_color, fg="#666").pack(side="left")
 
         section_colors = tk.LabelFrame(content, text="Farben (kompakt)", bg=self.controller_bg_color, fg=self.controller_text_color)
-        section_colors.pack(fill="x", pady=5)
+        section_colors.pack(fill="x", pady=5, padx=5)
 
-        colors_grid = tk.Frame(section_colors, bg=self.controller_bg_color)
-        colors_grid.pack(fill="x", padx=2, pady=2)
-        colors_grid.columnconfigure((0, 1), weight=1)
+        color_groups = tk.Frame(section_colors, bg=self.controller_bg_color)
+        color_groups.pack(fill="x")
+        color_groups.columnconfigure((0, 1), weight=1)
 
-        color_rows = [
-            ("Steuerpult Hintergrund", self.controller_bg_color_var),
-            ("Steuerpult Kopfzeile", self.controller_header_color_var),
-            ("Karten Hintergrund", self.controller_card_color_var),
-            ("Steuerpult Text", self.controller_text_color_var),
-            ("Anzeigetafel Hintergrund", self.scoreboard_bg_color_var),
-            ("Anzeigetafel Text", self.scoreboard_text_color_var),
+        ctrl_colors = tk.LabelFrame(color_groups, text="Steuerpult", bg=self.controller_bg_color, fg=self.controller_text_color)
+        ctrl_colors.grid(row=0, column=0, sticky="nsew", padx=(0, 6), pady=4)
+        ctrl_colors.columnconfigure((0, 1), weight=1)
+        ctrl_rows = [
+            ("Hintergrund", self.controller_bg_color_var),
+            ("Kopfzeile", self.controller_header_color_var),
+            ("Karten", self.controller_card_color_var),
+            ("Text", self.controller_text_color_var),
         ]
+        for idx, (label_text, var) in enumerate(ctrl_rows):
+            color_row(ctrl_colors, label_text, var, idx // 2, idx % 2)
 
-        for idx, (label_text, var) in enumerate(color_rows):
-            row = idx // 2
-            col = idx % 2
-            color_row(colors_grid, label_text, var, row, col)
+        board_colors = tk.LabelFrame(color_groups, text="Anzeigetafel", bg=self.controller_bg_color, fg=self.controller_text_color)
+        board_colors.grid(row=0, column=1, sticky="nsew", padx=(6, 0), pady=4)
+        board_colors.columnconfigure((0, 1), weight=1)
+        board_rows = [
+            ("Hintergrund", self.scoreboard_bg_color_var),
+            ("Text", self.scoreboard_text_color_var),
+        ]
+        for idx, (label_text, var) in enumerate(board_rows):
+            color_row(board_colors, label_text, var, idx // 2, idx % 2)
 
         btn_row = tk.Frame(content, bg=self.controller_bg_color)
         btn_row.pack(fill="x", pady=10)
@@ -1282,7 +1319,7 @@ class FussballTimer:
         self.progress.pack(fill="x", pady=(5, 0))
 
 
-    def _generate_buzzer_wave(self, path, duration=1.0, freq=600):
+    def _generate_buzzer_wave(self, path, duration=2.5, base_freq=110):
         sample_rate = 22050
         amplitude = 32767
         total_samples = int(sample_rate * duration)
@@ -1292,8 +1329,20 @@ class FussballTimer:
         with wave.open(str(path), "w") as wav_file:
             wav_file.setparams((1, 2, sample_rate, total_samples, "NONE", "not compressed"))
             for i in range(total_samples):
-                angle = 2 * math.pi * freq * (i / sample_rate)
-                value = int(amplitude * 0.35 * math.sin(angle))
+                t = i / sample_rate
+                vibrato = base_freq * 0.08 * math.sin(2 * math.pi * 2 * t)
+                freq = base_freq + vibrato
+                angle = 2 * math.pi * freq * t
+                envelope_rise = min(1.0, t / 0.4)
+                envelope_fall = max(0.0, (duration - t) / 0.4)
+                envelope = min(envelope_rise, envelope_fall, 1.0)
+
+                tone = (
+                    math.sin(angle)
+                    + 0.4 * math.sin(2 * angle)
+                    + 0.2 * math.sin(0.5 * angle)
+                ) / 1.6
+                value = int(amplitude * 0.42 * envelope * tone)
                 wav_file.writeframes(struct.pack("<h", value))
 
     def _ensure_buzzer_sound(self):
@@ -1302,8 +1351,7 @@ class FussballTimer:
 
         try:
             buzzer_path = Path(self.settings_path).with_name("hall_buzzer.wav")
-            if not buzzer_path.exists():
-                self._generate_buzzer_wave(buzzer_path)
+            self._generate_buzzer_wave(buzzer_path)
             self._buzzer_sound = pygame.mixer.Sound(str(buzzer_path))
         except Exception:
             self._buzzer_sound = None
@@ -1314,6 +1362,14 @@ class FussballTimer:
         if not self.hall_buzzer_enabled.get():
             return
 
+        sound = self._ensure_buzzer_sound()
+        if sound:
+            try:
+                sound.play()
+            except Exception:
+                pass
+
+    def _play_buzzer_preview(self):
         sound = self._ensure_buzzer_sound()
         if sound:
             try:
