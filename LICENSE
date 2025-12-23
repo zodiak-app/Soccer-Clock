@@ -1,0 +1,68 @@
+NO-SALE LICENSE (NSL) v1.0
+==========================
+
+Copyright (c) <2025> <Bernd Behrens>
+Kontakt für kommerzielle Verkaufslizenzen: <behrensbernd@aol.com>
+
+1) Begriffe
+-----------
+"Software" bezeichnet den Quellcode, die Binärdateien, Dokumentation und sonstige Inhalte
+dieses Repositories sowie alle abgeleiteten Werke (Änderungen, Forks, Modifikationen).
+
+"Verkaufen" (Sale) bedeutet:
+(a) die Software (oder einen wesentlichen Teil davon) gegen Entgelt zu lizenzieren,
+    zu übertragen, zu vertreiben oder anderweitig bereitzustellen,
+(b) die Software (oder einen wesentlichen Teil davon) in ein Produkt oder Paket
+    einzubinden, dessen Preis (ganz oder teilweise) für den Erhalt der Software
+    oder der Nutzungsrechte an der Software bezahlt wird,
+(c) den Zugang zu einer Kopie der Software (oder eines wesentlichen Teils davon)
+    nur gegen Zahlung zu gewähren.
+Nicht als "Verkaufen" gilt:
+(i) Entgelt für Dienstleistungen wie Beratung, Installation, Schulung, Support,
+    Hosting/Betreiben, Anpassung/Entwicklung, sofern dabei die Software selbst
+    nicht verkauft wird und Kopien der Software nicht nur gegen Zahlung herausgegeben werden,
+(ii) Spenden/Trinkgelder ohne Verpflichtung oder Gegenleistung,
+(iii) Kostenersatz zum Selbstkostenpreis für Datenträger/Versand.
+
+2) Erlaubnis (alles außer Verkaufen)
+------------------------------------
+Hiermit wird unentgeltlich und weltweit eine Lizenz erteilt, die Software zu:
+- nutzen, ausführen und anzeigen,
+- kopieren und weitergeben,
+- verändern, zusammenführen, veröffentlichen und abgeleitete Werke erstellen,
+- die Software in eigenen Projekten einzusetzen,
+unter der Bedingung, dass die nachfolgenden Anforderungen eingehalten werden.
+
+3) Verbot des Verkaufens
+------------------------
+Verkaufen der Software ist untersagt, außer du erhältst eine separate, schriftliche
+Verkaufslizenz von Bernd Behrens.
+
+4) Hinweis- und Lizenzpflicht
+-----------------------------
+Bei jeder Weitergabe der Software (Quelltext oder Binärform) musst du:
+- diesen Lizenztext vollständig beilegen, und
+- Copyright-Hinweise und vorhandene Lizenz-/Hinweisdateien beibehalten.
+
+5) Markenrechte
+---------------
+Diese Lizenz gewährt keine Rechte an Marken, Logos oder Namen von <NAME/ORG>.
+
+6) Gewährleistungsausschluss
+----------------------------
+DIE SOFTWARE WIRD "WIE BESEHEN" BEREITGESTELLT, OHNE JEGLICHE GEWÄHRLEISTUNG,
+AUSDRÜCKLICH ODER STILLSCHWEIGEND, EINSCHLIESSLICH (ABER NICHT BESCHRÄNKT AUF)
+MARKTGÄNGIGKEIT, EIGNUNG FÜR EINEN BESTIMMTEN ZWECK UND NICHTVERLETZUNG.
+
+7) Haftungsbeschränkung
+-----------------------
+SOWEIT GESETZLICH ZULÄSSIG, HAFTEN DIE URHEBER/RECHTSINHABER IN KEINEM FALL
+FÜR SCHÄDEN (DIREKT, INDIREKT, ZUFÄLLIG, BESONDERS, FOLGE- ODER STRAFSCHÄDEN),
+DIE AUS DER NUTZUNG ODER UNMÖGLICHKEIT DER NUTZUNG DER SOFTWARE ENTSTEHEN.
+
+8) Beendigung
+-------------
+Bei Verstoß gegen diese Lizenz endet dein Nutzungsrecht automatisch. Rechte von Personen,
+die von dir Kopien unter Einhaltung dieser Lizenz erhalten haben, bleiben unberührt.
+
+Ende der Lizenz.
